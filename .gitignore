@@ -1,0 +1,22 @@
+# GTFS feed data -- regenerated from live APIs, and stop_times.txt exceeds
+# GitHub's file size limit
+gtfs_*.zip
+gtfs_subway/
+gtfs_supplemented/
+gtfs_accessible/
+*.txt
+!requirements.txt
+
+# Cached API responses
+*.json
+!package.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# macOS
+.DS_Store
