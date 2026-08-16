@@ -44,7 +44,6 @@ import {
   spokenPlan,
 } from './components';
 import { ErrorBoundary } from './ErrorBoundary';
-import { About } from './About';
 import { Buses } from './Buses';
 import { Planned } from './Planned';
 import { Report } from './Report';
@@ -115,13 +114,6 @@ export default function App() {
             : "Built on the MTA's public GTFS, Subway Stations, and Elevator & Escalator feeds. Accessibility reflects the feed at build time — outages change hourly."}
         </div>
       </footer>
-
-      {/* Below the footer: background on the project rather than part of
-          using it. Wrapped in a landmark so it is not orphaned content that
-          landmark navigation skips over entirely. */}
-      <aside aria-label="About this project">
-        <About />
-      </aside>
     </div>
   );
 }
