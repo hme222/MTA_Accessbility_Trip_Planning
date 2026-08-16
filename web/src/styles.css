@@ -190,6 +190,21 @@ details > summary::marker { content: ''; }
   font-weight: 700; letter-spacing: -0.02em; font-size: 1.0625rem;
   margin-right: auto;
 }
+.masthead-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.75rem;
+  padding: 0.35rem 0.7rem;
+  color: var(--panel-text);
+  border: 1px solid rgba(255,255,255,0.45);
+  border-radius: 3px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.masthead-back:hover { background: rgba(255,255,255,0.12); }
+.masthead-back:focus-visible { outline-color: var(--panel-text); }
 .theme-btn {
   font: inherit; font-size: 0.875rem;
   color: var(--panel-text);

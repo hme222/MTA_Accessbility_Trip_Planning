@@ -143,6 +143,9 @@ function Masthead() {
           </svg>
           Accessible Transit
         </span>
+        <a className="masthead-back" href="../">
+          <span aria-hidden="true">←</span> Back to project page
+        </a>
         <TextSize />
 
         {/* Canonical toggle-button pattern: the name stays fixed and
