@@ -96,9 +96,7 @@ export function Report({ stations }: { stations: Station[] }) {
       <div className="notice notice-plain" style={{ marginTop: '1rem' }}>
         <p>
           <strong>This form does not send anything.</strong> It writes up your report so you can
-          file it through a channel that actually reaches the MTA — the links are below. A form
-          that looked like it filed a hazard report and quietly did not would be worse than no
-          form at all.
+          file it through a channel that actually reaches the MTA — the links are below.
         </p>
       </div>
 
@@ -178,8 +176,9 @@ export function Report({ stations }: { stations: Station[] }) {
               MTA accessibility complaints.
             </li>
             <li>
-              For an elevator or escalator that is out right now, check the{' '}
-              <strong>Elevators</strong> tab first — if it is already listed, the MTA knows.
+              For an elevator or escalator that is out right now, check{' '}
+              <strong>Elevator &amp; escalator outages</strong> under Plan a trip first — if it is
+              already listed, the MTA knows.
             </li>
           </ul>
         </div>

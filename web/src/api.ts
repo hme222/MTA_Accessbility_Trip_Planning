@@ -177,6 +177,66 @@ export function describeDistance(meters: number): string {
   return `${(meters / 1609).toFixed(1)} miles away`;
 }
 
+export interface PlannedOutage {
+  equipment: string;
+  type: 'elevator' | 'escalator';
+  station_ids: string[];
+  station_names: string[];
+  serving: string;
+  ada: boolean;
+  redundant: boolean;
+  will_block: boolean;
+  reason: string;
+  starts: string;
+  ends: string;
+}
+
+export interface PlannedOutageResponse {
+  fetched_at: number;
+  total: number;
+  blocking: number;
+  outages: PlannedOutage[];
+}
+
+export function fetchPlannedOutages(signal?: AbortSignal): Promise<PlannedOutageResponse> {
+  return get<PlannedOutageResponse>('/outages/upcoming', { limit: 200 }, signal);
+}
+
+export interface Equipment {
+  equipment: string;
+  type: 'elevator' | 'escalator';
+  serving: string;
+  ada: boolean;
+  redundant: boolean;
+  blocking: boolean;
+  reason: string;
+  outage_date: string;
+  estimated_return: string;
+}
+
+export function fetchEquipment(stopId: string, signal?: AbortSignal): Promise<Equipment[]> {
+  return get<Equipment[]>(`/stations/${encodeURIComponent(stopId)}/equipment`, {}, signal);
+}
+
+/**
+ * "08/20/2026 06:00:00 AM" -> "Thu Aug 20, 6:00 AM".
+ *
+ * Returned unchanged if it does not parse: showing the MTA's raw string is
+ * better than showing "Invalid Date" for a fact a rider may be relying on.
+ */
+export function formatOutageTime(value: string): string {
+  if (!value) return '';
+  const parsed = new Date(value.replace(/-/g, '/'));
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
 export interface TransferLeg {
   route: string;
   headsign: string;

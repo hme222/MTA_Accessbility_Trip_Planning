@@ -11,13 +11,22 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { speak, speechSupported, stop as stopSpeech } from './speech';
 
-import type { Alternative, Severity, Station, TransferOption, TripOption } from './api';
+import type {
+  Alternative,
+  Equipment,
+  Severity,
+  Station,
+  TransferOption,
+  TripOption,
+} from './api';
 import {
   accessLevel,
   accessSummary,
   describeDistance,
   durationMinutes,
   fetchAlternatives,
+  fetchEquipment,
+  formatOutageTime,
   formatTime,
   severityGlyph,
   severityLabel,
@@ -314,6 +323,80 @@ export function StationCombobox({
         </ul>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Why a station is not accessible right now.
+ *
+ * The station's own reason field names equipment — "ADA elevator(s) out of
+ * service: EL218, EL220" — which is precise and tells a rider nothing. This is
+ * what those numbers mean: what each unit serves, why it is out, and when it is
+ * due back. Those details decide the trip. An elevator returning within the
+ * hour is worth waiting for; one out until Thursday is not.
+ *
+ * Escalators are listed too, marked as not affecting accessibility, because a
+ * rider who can manage stairs but not a long climb still wants to know.
+ */
+export function EquipmentDetail({ station }: { station: Station }) {
+  const [items, setItems] = useState<Equipment[]>([]);
+  const level = accessLevel(station);
+
+  useEffect(() => {
+    if (level === 'full') {
+      setItems([]);
+      return;
+    }
+    const controller = new AbortController();
+    fetchEquipment(station.stop_id, controller.signal)
+      .then(setItems)
+      .catch(() => setItems([]));
+    return () => controller.abort();
+  }, [station.stop_id, level]);
+
+  if (level === 'full' || items.length === 0) return null;
+
+  const blocking = items.filter((i) => i.blocking);
+  const other = items.filter((i) => !i.blocking);
+
+  return (
+    <details className="equipment">
+      <summary>
+        <span aria-hidden="true">▸</span>
+        Why {station.stop_name} is not accessible right now
+        <span className="equipment-count">
+          {blocking.length} blocking
+          {other.length ? `, ${other.length} other` : ''}
+        </span>
+      </summary>
+
+      <ul className="equipment-list">
+        {[...blocking, ...other].map((item) => (
+          <li key={item.equipment} className={item.blocking ? 'eq eq-blocking' : 'eq eq-info'}>
+            <span className="eq-top">
+              <strong>{item.type === 'elevator' ? 'Elevator' : 'Escalator'} {item.equipment}</strong>
+              <span className="eq-tag">{item.blocking ? 'BLOCKING' : 'NOT BLOCKING'}</span>
+            </span>
+            {item.serving ? <span className="eq-serving">{item.serving}</span> : null}
+            <span className="eq-meta">
+              {item.reason ? <>Reason: {item.reason}. </> : null}
+              {item.estimated_return ? (
+                <>Expected back <strong>{formatOutageTime(item.estimated_return)}</strong>.</>
+              ) : (
+                <>No return time given.</>
+              )}
+            </span>
+            {!item.blocking ? (
+              <span className="eq-why">
+                {item.type === 'escalator'
+                  ? 'An escalator is not an accessible route, so this does not change the station\u2019s status.'
+                  : 'Another elevator covers the same accessible route.'}
+              </span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 

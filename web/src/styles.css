@@ -902,3 +902,110 @@ footer div { width: min(100% - 2rem, 940px); margin-inline: auto; }
 .subsection-body { padding: 0 1rem 1.25rem; border-top: 1px solid var(--rule); padding-top: 1rem; }
 /* These panels render their own <h2>; inside a subsection it is a sub-heading. */
 .subsection-body h2 { font-size: 1.125rem; }
+
+/* -- equipment detail -------------------------------------------------- */
+
+.equipment {
+  margin-top: -0.5rem;
+  border: 1px solid var(--rule-firm);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.equipment > summary {
+  cursor: pointer;
+  min-height: var(--tap);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.65rem 0.9rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  list-style: none;
+}
+.equipment > summary::-webkit-details-marker { display: none; }
+.equipment > summary:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
+.equipment > summary > span[aria-hidden] {
+  color: var(--accent);
+  display: inline-block;
+  transition: transform 120ms ease;
+}
+.equipment[open] > summary > span[aria-hidden] { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) {
+  .equipment > summary > span[aria-hidden] { transition: none; }
+}
+.equipment-count { margin-left: auto; font-size: 0.8125rem; font-weight: 400; color: var(--text-soft); }
+
+.equipment-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0.9rem 0.9rem;
+  display: grid;
+  gap: 0.6rem;
+}
+.eq {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border-left: 4px solid var(--rule-firm);
+  font-size: 0.875rem;
+}
+.eq-blocking { border-left-color: var(--stop); }
+.eq-info { border-left-color: var(--rule-firm); }
+.eq-top { display: flex; gap: 0.75rem; align-items: baseline; flex-wrap: wrap; }
+.eq-tag { margin-left: auto; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em; }
+.eq-blocking .eq-tag { color: var(--stop); }
+.eq-info .eq-tag { color: var(--text-soft); }
+.eq-serving { color: var(--text); }
+.eq-meta, .eq-why { color: var(--text-soft); font-size: 0.8125rem; }
+.eq-why { font-style: italic; }
+
+/* -- planned outages --------------------------------------------------- */
+
+.planned-day { margin-top: 1.75rem; }
+.planned-day-head {
+  font-size: 0.9375rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-soft);
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 2px solid var(--rule-firm);
+}
+
+/* -- about: project presentation --------------------------------------- */
+
+.about-section { display: grid; gap: 0.75rem; padding-block: 1.5rem; }
+.about-section + .about-section { border-top: 1px solid var(--rule); }
+.about-kicker {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+  color: var(--accent);
+}
+.about-section h3 { font-size: 1.25rem; max-width: 40ch; }
+.about-list { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.6rem; max-width: 70ch; }
+.about-list li { font-size: 0.9375rem; color: var(--text-soft); }
+.about-list strong { color: var(--text); }
+
+.about-stack { margin: 0; display: grid; gap: 0.9rem; }
+.about-stack > div {
+  display: grid;
+  grid-template-columns: 8rem minmax(0, 1fr);
+  gap: 0.25rem 1.25rem;
+}
+.about-stack dt {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: var(--text-soft);
+  padding-top: 0.15rem;
+}
+.about-stack dd { margin: 0; font-size: 0.9375rem; }
+@media (max-width: 34rem) {
+  .about-stack > div { grid-template-columns: 1fr; }
+}

@@ -208,6 +208,32 @@ def alternatives(
     )
 
 
+class Equipment(BaseModel):
+    equipment: str
+    type: str
+    serving: str = ""
+    ada: bool
+    redundant: bool
+    blocking: bool
+    reason: str = ""
+    outage_date: str = ""
+    estimated_return: str = ""
+
+
+@app.get("/stations/{stop_id}/equipment", response_model=List[Equipment])
+def station_equipment(stop_id: str):
+    """Which elevators and escalators are down at this station, and why.
+
+    The station's own `reason` field names equipment numbers, which tell a
+    rider nothing. This is what those numbers mean: what the unit serves, why
+    it is out, and when it is expected back -- the details that decide whether
+    to wait, reroute, or take the bus.
+    """
+    _require_feed()
+    _station_or_404(stop_id)
+    return cache.equipment_at(stop_id)
+
+
 @app.get("/plan", response_model=PlanResponse)
 def plan(
     origin: str = Query(..., description="Parent station id, e.g. R16"),
@@ -383,6 +409,27 @@ def plan_transfers(
         count=len(options),
         options=options,
     )
+
+
+@app.get("/outages/upcoming")
+def upcoming_outages(
+    blocking_only: bool = Query(
+        False, description="Only outages that will remove an accessible route"
+    ),
+    limit: int = Query(200, ge=1, le=500),
+):
+    """Scheduled future elevator and escalator outages.
+
+    Lets a rider plan around a closure instead of finding it on the platform.
+    This is also the source of the `return_outage_soon` hazard: a return
+    platform that works now but loses its elevator tonight passes every
+    current-state check while still stranding someone.
+    """
+    data = cache.upcoming_outages()
+    items = data["outages"]
+    if blocking_only:
+        items = [o for o in items if o["will_block"]]
+    return dict(data, outages=items[:limit], total=len(items))
 
 
 @app.get("/bus/alerts")

@@ -55,13 +55,13 @@ export function Buses() {
 
   return (
     <section aria-labelledby="bus-heading">
-      <h2 id="bus-heading">Buses</h2>
+      <h3 id="bus-heading">Buses</h3>
 
       {/* The reason this panel exists, stated once and prominently. */}
       <div className="notice notice-plain" style={{ marginTop: '1rem' }}>
-        <h3>
+        <h4>
           <span aria-hidden="true">✓</span> Every MTA bus is wheelchair accessible
-        </h3>
+        </h4>
         <p>
           All buses have a ramp or lift and kneel at the curb — there is no elevator to be out
           of service. When a station has no accessible route, the bus usually does. Which is why

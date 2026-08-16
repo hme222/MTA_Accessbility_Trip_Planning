@@ -24,6 +24,14 @@ import gtfs_accessibility as ga
 from Requests_MTA import rebuild_elevator_status
 
 
+def _start_key(value):
+    """Sort key for an MTA date string, unparseable values last."""
+    try:
+        return time.mktime(time.strptime(value, "%m/%d/%Y %I:%M:%S %p"))
+    except (ValueError, TypeError):
+        return float("inf")
+
+
 def _haversine_meters(lat1, lon1, lat2, lon2):
     """Great-circle distance. Straight-line, so always shorter than the walk."""
     radius = 6371000
@@ -58,6 +66,9 @@ class FeedCache:
         self._outages = None
         self._outages_at = 0.0
         self._outage_lock = threading.Lock()
+
+        self._equipment = None
+        self._upcoming = None
 
         self._bus = None
         self._bus_at = 0.0
@@ -257,17 +268,100 @@ class FeedCache:
 
     # -- live outages -----------------------------------------------------
 
+    def _equipment_db(self, force=False):
+        """The raw equipment database, fetched at most once per TTL.
+
+        Current and scheduled outages arrive in the same three API calls, so
+        both views are built from one fetch rather than two.
+        """
+        fresh = time.time() - self._outages_at < OUTAGE_TTL_SECONDS
+        if self._equipment is not None and fresh and not force:
+            return self._equipment
+
+        self._equipment = rebuild_elevator_status()
+        self._outages_at = time.time()
+        self._outages = None
+        self._upcoming = None
+        return self._equipment
+
     def outages(self, force=False):
         """Current elevator/escalator outages, refetched at most every TTL."""
         with self._outage_lock:
-            fresh = time.time() - self._outages_at < OUTAGE_TTL_SECONDS
-            if self._outages is not None and fresh and not force:
-                return self._outages
-
-            equipment = rebuild_elevator_status()
-            self._outages = self._summarize_outages(equipment)
-            self._outages_at = time.time()
+            equipment = self._equipment_db(force)
+            if self._outages is None:
+                self._outages = self._summarize_outages(equipment)
             return self._outages
+
+    def upcoming_outages(self, force=False):
+        """Scheduled future outages, by station.
+
+        This is the view that lets someone plan around a closure rather than
+        discover it on the platform -- and planning ahead is the norm for riders
+        who must confirm an accessible route before setting out. It is also the
+        source of the `return_outage_soon` hazard: a return platform that works
+        now but loses its elevator tonight passes every current-state check
+        while still stranding someone.
+        """
+        with self._outage_lock:
+            equipment = self._equipment_db(force)
+            if self._upcoming is None:
+                self._upcoming = self._summarize_upcoming(equipment)
+            return self._upcoming
+
+    def _summarize_upcoming(self, equipment):
+        names = {st["stop_id"]: st["stop_name"] for st in self.stations()}
+        items = []
+
+        for eq_id, entry in equipment.items():
+            scheduled = entry.get("upcoming_outages") or []
+            if not scheduled:
+                continue
+
+            eq = entry["details"]
+            station_ids = ga.split_gtfs_ids(eq.get("elevatorsgtfsstopid"))
+            is_elevator = eq.get("equipmenttype") == "EL"
+            # Same rule as everywhere else: only a non-redundant ADA elevator
+            # can remove an accessible route.
+            will_block = is_elevator and eq.get("ADA") == "Y" and not eq.get("redundant")
+
+            for outage in scheduled:
+                items.append(
+                    {
+                        "equipment": eq_id,
+                        "type": "elevator" if is_elevator else "escalator",
+                        "station_ids": station_ids,
+                        "station_names": [names.get(s, "") for s in station_ids],
+                        "serving": eq.get("serving", ""),
+                        "ada": eq.get("ADA") == "Y",
+                        "redundant": bool(eq.get("redundant")),
+                        "will_block": bool(will_block),
+                        "reason": outage.get("reason", ""),
+                        "starts": outage.get("outagedate", ""),
+                        "ends": outage.get("estimatedreturntoservice", ""),
+                    }
+                )
+
+        items.sort(key=lambda i: (_start_key(i["starts"]), not i["will_block"], i["equipment"]))
+        return {
+            "fetched_at": time.time(),
+            "total": len(items),
+            "blocking": sum(1 for i in items if i["will_block"]),
+            "outages": items,
+        }
+
+    def equipment_at(self, stop_id):
+        """Outages affecting one station, newest-blocking first.
+
+        `accessibility_status.txt` records the verdict as "ADA elevator(s) out
+        of service: EL218, EL220", which is precise and useless to a rider --
+        an equipment number says nothing about what it serves or when it comes
+        back. Those details change the decision: an elevator returning within
+        the hour is worth waiting for, a two-week outage is not.
+        """
+        data = self.outages()
+        here = [o for o in data["outages"] if stop_id in o["station_ids"]]
+        here.sort(key=lambda o: (not o["blocking"], o["equipment"]))
+        return here
 
     # -- bus alerts -------------------------------------------------------
 

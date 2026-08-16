@@ -33,6 +33,7 @@ import {
 } from './api';
 import {
   Alternatives,
+  EquipmentDetail,
   ErrorNotice,
   Loading,
   ReadAloud,
@@ -45,12 +46,13 @@ import {
 import { ErrorBoundary } from './ErrorBoundary';
 import { About } from './About';
 import { Buses } from './Buses';
+import { Planned } from './Planned';
 import { Report } from './Report';
 import { TripMap } from './TripMap';
 import { useStations } from './useStations';
 import { useAutoRefresh, useAutoRefreshSetting } from './useAutoRefresh';
 
-type Panel = 'plan' | 'report';
+type Panel = 'plan' | 'planned' | 'report';
 
 export default function App() {
   const [panel, setPanel] = useState<Panel>('plan');
@@ -85,6 +87,16 @@ export default function App() {
 
         <div
           role="tabpanel"
+          id="panel-planned"
+          aria-labelledby="tab-planned"
+          tabIndex={-1}
+          hidden={panel !== 'planned'}
+        >
+          <ErrorBoundary>{panel === 'planned' ? <Planned /> : null}</ErrorBoundary>
+        </div>
+
+        <div
+          role="tabpanel"
           id="panel-report"
           aria-labelledby="tab-report"
           tabIndex={-1}
@@ -101,9 +113,12 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Below the footer: this is background on the project, not part of
-          using it. */}
-      <About />
+      {/* Below the footer: background on the project rather than part of
+          using it. Wrapped in a landmark so it is not orphaned content that
+          landmark navigation skips over entirely. */}
+      <aside aria-label="About this project">
+        <About />
+      </aside>
     </div>
   );
 }
@@ -149,27 +164,55 @@ function Masthead() {
   );
 }
 
-function Tabs({ panel, onChange }: { panel: Panel; onChange: (next: Panel) => void }) {
-  const tabs: { key: Panel; label: string }[] = [
-    { key: 'plan', label: 'Plan a trip' },
-    { key: 'report', label: 'Report a problem' },
-  ];
+const TABS: { key: Panel; label: string }[] = [
+  { key: 'plan', label: 'Plan a trip' },
+  { key: 'planned', label: 'Planned outages' },
+  { key: 'report', label: 'Report a problem' },
+];
 
-  // Arrow-key navigation is expected of a tablist, and its absence strands
-  // anyone not using a pointer.
+function Tabs({ panel, onChange }: { panel: Panel; onChange: (next: Panel) => void }) {
+  const refs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  /**
+   * Roving tabindex (WAI-ARIA tabs pattern).
+   *
+   * The selected tab is the only one in the tab order, so an arrow key must
+   * move DOM focus as well as selection — otherwise focus stays on a button
+   * that just dropped to tabIndex -1 and the next Tab press jumps somewhere
+   * unrelated. Home and End are part of the same expected pattern.
+   */
+  const move = (next: Panel) => {
+    onChange(next);
+    requestAnimationFrame(() => refs.current[next]?.focus());
+  };
+
   const onKeyDown = (event: React.KeyboardEvent) => {
-    const index = tabs.findIndex((t) => t.key === panel);
-    if (event.key === 'ArrowRight') onChange(tabs[(index + 1) % tabs.length].key);
-    if (event.key === 'ArrowLeft') onChange(tabs[(index - 1 + tabs.length) % tabs.length].key);
+    const index = TABS.findIndex((t) => t.key === panel);
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      move(TABS[(index + 1) % TABS.length].key);
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      move(TABS[(index - 1 + TABS.length) % TABS.length].key);
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      move(TABS[0].key);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      move(TABS[TABS.length - 1].key);
+    }
   };
 
   return (
     <div className="tabs" role="tablist" aria-label="Sections" onKeyDown={onKeyDown}>
-      {tabs.map((tab) => {
+      {TABS.map((tab) => {
         const selected = tab.key === panel;
         return (
           <button
             key={tab.key}
+            ref={(node) => {
+              refs.current[tab.key] = node;
+            }}
             type="button"
             role="tab"
             id={`tab-${tab.key}`}
@@ -348,6 +391,7 @@ function Planner() {
           exclude={destination?.stop_id}
           onChange={setOrigin}
         />
+        {origin ? <EquipmentDetail station={origin} /> : null}
         {origin ? (
           <Alternatives station={origin} role="origin" onSwap={(id) => swapTo('origin', id)} />
         ) : null}
@@ -359,6 +403,7 @@ function Planner() {
           exclude={origin?.stop_id}
           onChange={setDestination}
         />
+        {destination ? <EquipmentDetail station={destination} /> : null}
         {destination ? (
           <Alternatives
             station={destination}
@@ -480,7 +525,7 @@ function Transfers({
     setLoading(true);
     setData(null);
     const { date, after } = fromInputValues(when.date, when.time);
-    fetchTransfers(origin, destination, { date, after, limit: 6 }, controller.signal)
+    fetchTransfers(origin, destination, { date, after, limit: 2 }, controller.signal)
       .then(setData)
       .catch(() => setData(null))
       .finally(() => setLoading(false));
@@ -627,7 +672,7 @@ function Outages() {
   return (
     <section aria-labelledby="outages-heading">
       <div className="outage-head">
-        <h2 id="outages-heading">Equipment outages</h2>
+        <h3 id="outages-heading">Equipment outages</h3>
         <p className="results-count">
           {data.blocking} of {data.total} remove the accessible route
         </p>
