@@ -263,9 +263,10 @@ makes same-origin requests and CORS never enters into it. Override the target
 with `API_TARGET` in development.
 
 Without `VITE_API_URL`, a production build uses the clearly labeled, bounded
-demonstration adapter in `web/src/demoApi.ts`. This is the GitHub Pages mode and
-does not make network requests or claim current service data. Point a live build
-at a deployed backend explicitly:
+demonstration adapter in `web/src/demoApi.ts`. This is the GitHub Pages mode. It
+includes representative subway stations, bus stops, mixed-mode examples, and
+curb-ramp records; it does not claim current service data. Point a live build at
+a deployed backend explicitly:
 
 ```bash
 VITE_API_URL=https://your-api.example.com npm run build
@@ -300,9 +301,9 @@ Accessibility is a requirement here, not a feature:
 
 | Panel | |
 |---|---|
-| **Plan a trip** | Departures with advisories, a date and time to plan ahead, and an optional map |
-| **Elevators** | Live outages, with blocking distinguished from merely informational |
-| **Buses** | Service alerts — every MTA bus is wheelchair accessible, so this is often the only accessible option on a corridor |
+| **Plan a trip** | Subway or bus endpoints, departures with advisories, a selection-triggered map, and curb-ramp details |
+| **Elevators** | Outage disclosure with blocking distinguished from informational records |
+| **Buses** | Alert disclosure — every MTA bus is wheelchair accessible, so this is often the only accessible option on a corridor |
 | **Report a problem** | Composes a structured report for the rider to file. It does **not** submit anywhere, and says so |
 
 Two features worth calling out:

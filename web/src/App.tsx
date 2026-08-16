@@ -36,6 +36,7 @@ import {
   EquipmentDetail,
   ErrorNotice,
   Loading,
+  RampQuality,
   ReadAloud,
   StationCombobox,
   Switch,
@@ -179,9 +180,10 @@ function DataModeNotice() {
         <span aria-hidden="true">ⓘ</span> Demonstration snapshot
       </h2>
       <p>
-        This static version uses a small representative dataset dated August 16, 2026. It is not
-        current MTA service information and must not be used to make travel decisions. Try{' '}
-        <strong>Times Sq-42 St to 49 St</strong> to see the return-trip warning.
+        This static version uses a small representative subway and bus dataset dated August 16,
+        2026. It is not current MTA service information and must not be used to make travel
+        decisions. Try <strong>Times Sq-42 St to 49 St</strong> for a return warning, or{' '}
+        <strong>W 42 St &amp; 7 Av to W 42 St &amp; 8 Av</strong> for a bus trip.
       </p>
       <a href="../">Read the project notes and data limitations</a>
     </aside>
@@ -325,6 +327,12 @@ function Planner() {
     setSearchError(null);
   }, [origin?.stop_id, destination?.stop_id]);
 
+  // Focus only after React has committed the result heading. Scheduling from
+  // inside the request handler can run before a first result exists in the DOM.
+  useEffect(() => {
+    if (plan && !searching) resultsRef.current?.focus();
+  }, [plan, searching]);
+
   const search = async () => {
     if (!origin || !destination) return;
     const id = ++requestId.current;
@@ -342,9 +350,6 @@ function Planner() {
       });
       if (id !== requestId.current) return; // a newer search superseded this one
       setPlan(result);
-      // Send focus to the results heading so a keyboard or screen reader user
-      // lands on the answer instead of hunting for it below the form.
-      requestAnimationFrame(() => resultsRef.current?.focus());
     } catch (err) {
       if (id !== requestId.current) return;
       setSearchError(err instanceof ApiError ? err.message : 'Something went wrong.');
@@ -391,7 +396,7 @@ function Planner() {
       <Freshness />
 
       <form
-        className="planner"
+        className={`planner planner-workspace${origin || destination ? ' planner-workspace-with-map' : ''}`}
         onSubmit={(event) => {
           event.preventDefault();
           search();
@@ -404,86 +409,97 @@ function Planner() {
           {notice}
         </span>
 
-        <StationCombobox
-          label="From"
-          stations={stations}
-          value={origin}
-          exclude={destination?.stop_id}
-          onChange={setOrigin}
-        />
-        {origin ? <EquipmentDetail station={origin} /> : null}
-        {origin ? (
-          <Alternatives station={origin} role="origin" onSwap={(id) => swapTo('origin', id)} />
-        ) : null}
-
-        <StationCombobox
-          label="To"
-          stations={stations}
-          value={destination}
-          exclude={origin?.stop_id}
-          onChange={setDestination}
-        />
-        {destination ? <EquipmentDetail station={destination} /> : null}
-        {destination ? (
-          <Alternatives
-            station={destination}
-            role="destination"
-            onSwap={(id) => swapTo('destination', id)}
+        <div className="route-fields">
+          <StationCombobox
+            label="From"
+            stations={stations}
+            value={origin}
+            exclude={destination?.stop_id}
+            onChange={setOrigin}
           />
+          {origin ? <EquipmentDetail station={origin} /> : null}
+          {origin ? <RampQuality stopId={origin.stop_id} stationName={origin.stop_name} /> : null}
+          {origin ? (
+            <Alternatives station={origin} role="origin" onSwap={(id) => swapTo('origin', id)} />
+          ) : null}
+
+          <StationCombobox
+            label="To"
+            stations={stations}
+            value={destination}
+            exclude={origin?.stop_id}
+            onChange={setDestination}
+          />
+          {destination ? <EquipmentDetail station={destination} /> : null}
+          {destination ? <RampQuality stopId={destination.stop_id} stationName={destination.stop_name} /> : null}
+          {destination ? (
+            <Alternatives
+              station={destination}
+              role="destination"
+              onSwap={(id) => swapTo('destination', id)}
+            />
+          ) : null}
+        </div>
+
+        {origin || destination ? (
+          <aside className="selection-map" aria-label="Map of selected trip locations">
+            <TripMap origin={origin} destination={destination} />
+          </aside>
         ) : null}
 
-        <div className="when">
-          <div className="field">
-            <label htmlFor="depart-date">Departure date</label>
-            <input
-              id="depart-date"
-              type="date"
-              value={when.date}
-              onChange={(event) => setWhen((w) => ({ ...w, date: event.target.value }))}
-            />
+        <div className="planner-options">
+          <div className="when">
+            <div className="field">
+              <label htmlFor="depart-date">Departure date</label>
+              <input
+                id="depart-date"
+                type="date"
+                value={when.date}
+                onChange={(event) => setWhen((w) => ({ ...w, date: event.target.value }))}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="depart-time">Departing after</label>
+              <input
+                id="depart-time"
+                type="time"
+                value={when.time}
+                onChange={(event) => setWhen((w) => ({ ...w, time: event.target.value }))}
+              />
+            </div>
           </div>
-          <div className="field">
-            <label htmlFor="depart-time">Departing after</label>
-            <input
-              id="depart-time"
-              type="time"
-              value={when.time}
-              onChange={(event) => setWhen((w) => ({ ...w, time: event.target.value }))}
-            />
-          </div>
-        </div>
 
         {/* Stated before the search, not after an empty result. Discovering a
             limitation through failure is the most expensive way to learn it. */}
-        <p className="form-help" id="planner-scope">
-          Direct trips appear first. The planner also checks a bounded set of journeys with{' '}
-          <strong>one change</strong>; more complex journeys are not included.
-        </p>
+          <p className="form-help" id="planner-scope">
+            Choose either a subway station or a representative bus stop. Direct trips appear first.
+            The planner also checks a bounded set of subway journeys with <strong>one change</strong>;
+            more complex journeys are not included.
+          </p>
 
-        <div className="controls">
-          <Switch
-            label="ADA accessible trips only"
-            hint="Hides anything with a warning. If your destination is not ADA accessible, this returns nothing at all."
-            checked={stepFreeOnly}
-            onChange={setStepFreeOnly}
-          />
-          <div className="btn-row">
-            <button type="button" className="btn btn-secondary" onClick={swap} disabled={!ready}>
-              Swap
-            </button>
-            <button
-              type="submit"
-              className="btn"
-              disabled={!ready || searching}
-              aria-describedby="planner-scope"
-            >
-              {searching ? 'Finding trips…' : 'Find trips'}
-            </button>
+          <div className="controls">
+            <Switch
+              label="ADA accessible trips only"
+              hint="Hides anything with a warning. If your destination is not ADA accessible, this returns nothing at all."
+              checked={stepFreeOnly}
+              onChange={setStepFreeOnly}
+            />
+            <div className="btn-row">
+              <button type="button" className="btn btn-secondary" onClick={swap} disabled={!ready}>
+                Swap
+              </button>
+              <button
+                type="submit"
+                className="btn"
+                disabled={!ready || searching}
+                aria-describedby="planner-scope"
+              >
+                {searching ? 'Finding trips…' : 'Find trips'}
+              </button>
+            </div>
           </div>
         </div>
       </form>
-
-      {origin ? <TripMap origin={origin} destination={destination} /> : null}
 
       {searchError ? <ErrorNotice message={searchError} onRetry={search} /> : null}
       {searching ? <Loading label="Finding trips…" /> : null}
@@ -504,14 +520,26 @@ function Planner() {
         aria-label={DATA_MODE === 'demo' ? 'Demonstration service information' : 'Live service information'}
       >
         <details className="subsection">
-          <summary><span aria-hidden="true">▸</span> Elevator &amp; escalator outages</summary>
+          <summary>
+            <span className="disclosure-arrow" aria-hidden="true">▸</span>
+            <span className="disclosure-copy">
+              <strong>Elevator &amp; escalator outages</strong>
+              <span>Check equipment affecting subway accessibility</span>
+            </span>
+          </summary>
           <div className="subsection-body">
             <ErrorBoundary><Outages /></ErrorBoundary>
           </div>
         </details>
 
         <details className="subsection">
-          <summary><span aria-hidden="true">▸</span> Bus alerts — every MTA bus is accessible</summary>
+          <summary>
+            <span className="disclosure-arrow" aria-hidden="true">▸</span>
+            <span className="disclosure-copy">
+              <strong>Bus alerts</strong>
+              <span>Check detours and stop changes; every MTA bus is wheelchair accessible</span>
+            </span>
+          </summary>
           <div className="subsection-body">
             <ErrorBoundary><Buses /></ErrorBoundary>
           </div>
@@ -622,8 +650,6 @@ function Results({
           </p>
         </div>
       ) : null}
-
-      <TripMap origin={plan.origin} destination={plan.destination} />
 
       {plan.count === 0 ? (
         <div className="notice notice-plain">

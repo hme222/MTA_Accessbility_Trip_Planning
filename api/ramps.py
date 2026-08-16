@@ -102,6 +102,10 @@ def assess(ramp):
         "compliant": measured and not issues,
         "measured": measured,
         "issues": issues,
+        "detectable_warning": dws or None,
+        "surface_condition": None,
+        "obstruction": obstacle or None,
+        "ponding": True if (ramp.get("ponding") or "").strip().lower() == "yes" else False,
     }
 
 

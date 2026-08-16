@@ -10,6 +10,7 @@ export type Severity = 'step_free' | 'return_warning' | 'outbound_warning';
 
 /** MTA convention, not GTFS: 2 means partial here, not "boarding impossible". */
 export type AdaStatus = '0' | '1' | '2';
+export type StopKind = 'subway' | 'bus';
 
 export interface Station {
   stop_id: string;
@@ -21,6 +22,8 @@ export interface Station {
   southbound: boolean;
   reason: string;
   routes: string[];
+  /** Omitted by the legacy live subway API; subway remains the safe default. */
+  kind?: StopKind;
 }
 
 export interface TripOption {
@@ -32,6 +35,8 @@ export interface TripOption {
   arrive: string;
   severity: Severity;
   advisories: string[];
+  /** Omitted by the legacy live API; subway remains the safe default. */
+  mode?: StopKind;
 }
 
 export interface PlanResponse {
@@ -200,9 +205,14 @@ export interface Ramp {
   compliant: boolean;
   measured: boolean;
   issues: string[];
+  detectable_warning: string | null;
+  surface_condition: string | null;
+  obstruction: string | null;
+  ponding: boolean | null;
 }
 
 export interface RampReport {
+  fetched_at?: number;
   total: number;
   compliant: number;
   substandard: number;
@@ -310,6 +320,7 @@ export interface TransferLeg {
   headsign: string;
   depart: string;
   arrive: string;
+  mode?: StopKind;
 }
 
 export interface TransferOption {
@@ -502,10 +513,19 @@ export const severityGlyph: Record<Severity, string> = {
 };
 
 export function accessSummary(station: Station): string {
+  if (stationKind(station) === 'bus') return 'Wheelchair accessible bus service';
   if (station.northbound && station.southbound) return 'ADA accessible in both directions';
   if (station.northbound) return 'ADA accessible uptown only';
   if (station.southbound) return 'ADA accessible downtown only';
   return 'Not ADA accessible';
+}
+
+export function stationKind(station: Station): StopKind {
+  return station.kind ?? 'subway';
+}
+
+export function stopKindLabel(station: Station): string {
+  return stationKind(station) === 'bus' ? 'Bus stop' : 'Subway station';
 }
 
 export function accessLevel(station: Station): 'full' | 'partial' | 'none' {
@@ -518,4 +538,11 @@ export function spokenRoutes(routes: string[]): string {
   if (!routes.length) return '';
   if (routes.length === 1) return `${routes[0]} train`;
   return `${routes.slice(0, -1).join(', ')} and ${routes[routes.length - 1]} trains`;
+}
+
+export function spokenServices(station: Station): string {
+  if (!station.routes.length) return stopKindLabel(station);
+  const noun = stationKind(station) === 'bus' ? 'bus' : 'train';
+  if (station.routes.length === 1) return `${station.routes[0]} ${noun}`;
+  return `${station.routes.slice(0, -1).join(', ')} and ${station.routes[station.routes.length - 1]} ${noun} routes`;
 }

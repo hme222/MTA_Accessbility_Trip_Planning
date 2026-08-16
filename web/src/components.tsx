@@ -36,8 +36,10 @@ import {
   severityGlyph,
   severityLabel,
   severitySpoken,
+  spokenServices,
   spokenRoutes,
   spokenTime,
+  stopKindLabel,
 } from './api';
 
 // -- route bullets --------------------------------------------------------
@@ -80,10 +82,11 @@ export function RouteBullets({ routes, large }: { routes: string[]; large?: bool
     <span className="bullets" aria-hidden="true">
       {routes.map((route) => {
         const key = route.toUpperCase();
+        const busRoute = /^(M|BX|B|Q|S)\d/i.test(key) || key.includes('+');
         return (
           <span
             key={route}
-            className={large ? 'bullet bullet-lg' : 'bullet'}
+            className={`${large ? 'bullet bullet-lg' : 'bullet'}${busRoute ? ' bullet-bus' : ''}`}
             style={{
               background: ROUTE_COLORS[key] ?? '#4A5058',
               color: DARK_TEXT.has(key) ? '#111417' : '#FFFFFF',
@@ -169,7 +172,13 @@ export function StationCombobox({
     // An untouched selection shows the whole list rather than just itself, so
     // reopening the field is a way to browse, not a dead end.
     if (!needle || needle === value?.stop_name.toLowerCase()) return pool.slice(0, 60);
-    return pool.filter((s) => s.stop_name.toLowerCase().includes(needle)).slice(0, 60);
+    return pool
+      .filter(
+        (s) =>
+          s.stop_name.toLowerCase().includes(needle) ||
+          s.routes.some((route) => route.toLowerCase().includes(needle)),
+      )
+      .slice(0, 60);
   }, [stations, text, exclude, value?.stop_name]);
 
   // Announce the result count only once typing pauses. Updating a live region
@@ -182,7 +191,7 @@ export function StationCombobox({
       return;
     }
     const timer = setTimeout(() => {
-      setAnnounced(`${matches.length} station${matches.length === 1 ? '' : 's'} available`);
+      setAnnounced(`${matches.length} location${matches.length === 1 ? '' : 's'} available`);
     }, 500);
     return () => clearTimeout(timer);
   }, [matches.length, open]);
@@ -263,7 +272,7 @@ export function StationCombobox({
         aria-activedescendant={activeId}
         aria-describedby={value ? `${inputId}-status` : undefined}
         autoComplete="off"
-        placeholder="Type a station name"
+        placeholder="Type a subway station or bus stop"
         value={text}
         onFocus={() => {
           setOpen(true);
@@ -284,9 +293,10 @@ export function StationCombobox({
       {value ? (
         <p id={`${inputId}-status`} className="option-meta">
           <RouteBullets routes={value.routes} />
+          <span className="stop-kind">{stopKindLabel(value)}</span>
           <AccessLine station={value} />
           <span className="sr-only">
-            {spokenRoutes(value.routes)}. {accessSummary(value)}.
+            {spokenServices(value)}. {accessSummary(value)}.
           </span>
         </p>
       ) : null}
@@ -298,7 +308,7 @@ export function StationCombobox({
       {open ? (
         <ul className="listbox" id={listId} role="listbox" aria-labelledby={labelId} ref={listRef}>
           {matches.length === 0 ? (
-            <li className="no-options">No stations match that search.</li>
+            <li className="no-options">No subway stations or bus stops match that search.</li>
           ) : (
             matches.map((station, index) => (
               <li
@@ -317,10 +327,11 @@ export function StationCombobox({
                 <span className="option-name">{station.stop_name}</span>
                 <span className="option-meta">
                   <RouteBullets routes={station.routes} />
+                  <span className="stop-kind">{stopKindLabel(station)}</span>
                   <AccessLine station={station} />
                 </span>
                 <span className="sr-only">
-                  {spokenRoutes(station.routes)}. {accessSummary(station)}.
+                  {spokenServices(station)}. {accessSummary(station)}.
                 </span>
               </li>
             ))
@@ -499,9 +510,6 @@ export function Alternatives({
         you pick one.
       </p>
 
-      {items[0] ? (
-        <RampQuality stopId={items[0].stop_id} stationName={items[0].stop_name} />
-      ) : null}
     </section>
   );
 }
@@ -525,6 +533,12 @@ export function RampQuality({ stopId, stationName }: { stopId: string; stationNa
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    setReport(null);
+    setLoaded(false);
+    setOpen(false);
+  }, [stopId]);
+
+  useEffect(() => {
     if (!open || loaded) return;
     const controller = new AbortController();
     fetchRamps(stopId, 200, controller.signal)
@@ -544,7 +558,7 @@ export function RampQuality({ stopId, stationName }: { stopId: string; stationNa
     >
       <summary>
         <span aria-hidden="true">▸</span>
-        Curb ramps on the walk to {stationName}
+        Curb ramps near {stationName}
         {loaded && report ? (
           <span className="equipment-count">
             {report.compliant} of {report.total} meet ADA
@@ -580,8 +594,8 @@ export function RampQuality({ stopId, stationName }: { stopId: string; stationNa
             <p className="eq-why">
               Scored against the ADA Standards for Accessible Design: running slope at most
               8.33%, cross slope at most 2.08%, clear width at least 36 inches, and a detectable
-              warning surface. Ramps that fall short are listed, not hidden — many riders still
-              manage them. Source: NYC Open Data.
+              warning surface. This is infrastructure data, not a report of current sidewalk
+              conditions. Ramps that fall short are listed, not hidden. Source: NYC Open Data.
             </p>
           </>
         )}
@@ -591,17 +605,22 @@ export function RampQuality({ stopId, stationName }: { stopId: string; stationNa
 }
 
 function RampRow({ ramp }: { ramp: Ramp }) {
+  const status = !ramp.measured ? 'NOT MEASURED' : ramp.compliant ? 'MEETS ADA' : 'BELOW STANDARD';
   return (
-    <li className={ramp.compliant ? 'ramp ramp-ok' : 'ramp ramp-bad'}>
+    <li className={ramp.compliant ? 'ramp ramp-ok' : ramp.measured ? 'ramp ramp-bad' : 'ramp'}>
       <span className="ramp-top">
         <strong>{ramp.street || `Ramp ${ramp.ramp_id}`}</strong>
-        <span className="ramp-tag">{ramp.compliant ? 'MEETS ADA' : 'BELOW STANDARD'}</span>
+        <span className="ramp-tag">{status}</span>
       </span>
-      <span className="ramp-measures">
-        {ramp.running_slope !== null ? <>slope {ramp.running_slope}% · </> : null}
-        {ramp.cross_slope !== null ? <>cross {ramp.cross_slope}% · </> : null}
-        {ramp.width_inches !== null ? <>width {Math.round(ramp.width_inches)} in</> : null}
-      </span>
+      <dl className="ramp-measures">
+        <div><dt>Running slope</dt><dd>{ramp.running_slope !== null ? `${ramp.running_slope}%` : 'Not measured'}</dd></div>
+        <div><dt>Cross slope</dt><dd>{ramp.cross_slope !== null ? `${ramp.cross_slope}%` : 'Not measured'}</dd></div>
+        <div><dt>Clear width</dt><dd>{ramp.width_inches !== null ? `${Math.round(ramp.width_inches)} in` : 'Not measured'}</dd></div>
+        <div><dt>Warning surface</dt><dd>{ramp.detectable_warning ?? 'Not published'}</dd></div>
+        <div><dt>Surface</dt><dd>{ramp.surface_condition ?? 'Not published'}</dd></div>
+        <div><dt>Obstruction</dt><dd>{ramp.obstruction ?? 'None reported'}</dd></div>
+        <div><dt>Water ponding</dt><dd>{ramp.ponding === null ? 'Not published' : ramp.ponding ? 'Reported' : 'Not reported'}</dd></div>
+      </dl>
       {ramp.issues.length > 0 ? (
         <ul className="ramp-issues">
           {ramp.issues.map((issue) => (
@@ -658,7 +677,7 @@ export function TripCard({ trip, destination }: { trip: TripOption; destination:
   const minutes = durationMinutes(trip.depart, trip.arrive);
 
   const spoken = [
-    `${trip.route_id} train to ${trip.trip_headsign}`,
+    `${trip.route_id} ${trip.mode === 'bus' ? 'bus' : 'train'} to ${trip.trip_headsign}`,
     `departs ${spokenTime(trip.depart)}, arrives ${destination} ${spokenTime(trip.arrive)}`,
     `${minutes} minute${minutes === 1 ? '' : 's'}`,
     severitySpoken[trip.severity],
@@ -680,7 +699,7 @@ export function TripCard({ trip, destination }: { trip: TripOption; destination:
       </div>
 
       <p className="trip-head" aria-hidden="true">
-        to {trip.trip_headsign}
+        {trip.mode === 'bus' ? 'bus' : 'train'} to {trip.trip_headsign}
       </p>
 
       <SeverityChip severity={trip.severity} />
@@ -708,11 +727,11 @@ export function TripCard({ trip, destination }: { trip: TripOption; destination:
  */
 export function TransferCard({ option }: { option: TransferOption }) {
   const spoken = [
-    `${option.leg_1.route} train toward ${option.leg_1.headsign}, departing ${spokenTime(option.depart)}`,
+    `${option.leg_1.route} ${option.leg_1.mode === 'bus' ? 'bus' : 'train'} toward ${option.leg_1.headsign}, departing ${spokenTime(option.depart)}`,
     option.walk_between
       ? `arrive ${option.arrive_name}, then walk to ${option.transfer_name}, waiting ${option.wait_minutes} minute${option.wait_minutes === 1 ? '' : 's'}`
       : `change at ${option.transfer_name}, waiting ${option.wait_minutes} minute${option.wait_minutes === 1 ? '' : 's'}`,
-    `then the ${option.leg_2.route} train toward ${option.leg_2.headsign}, arriving ${spokenTime(option.arrive)}`,
+    `then the ${option.leg_2.route} ${option.leg_2.mode === 'bus' ? 'bus' : 'train'} toward ${option.leg_2.headsign}, arriving ${spokenTime(option.arrive)}`,
     `${option.total_minutes} minutes total`,
     severitySpoken[option.severity],
     ...option.advisories,

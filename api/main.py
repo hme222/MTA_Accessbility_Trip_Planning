@@ -272,6 +272,10 @@ class Ramp(BaseModel):
     compliant: bool
     measured: bool
     issues: List[str] = []
+    detectable_warning: Optional[str] = None
+    surface_condition: Optional[str] = None
+    obstruction: Optional[str] = None
+    ponding: Optional[bool] = None
 
 
 class RampReport(BaseModel):

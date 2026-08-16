@@ -273,7 +273,33 @@ main {
 
 /* -- forms ----------------------------------------------------------- */
 
-.planner { display: grid; gap: 1.25rem; }
+.planner { display: grid; gap: 1.25rem; min-width: 0; }
+.planner-workspace { display: grid; gap: 1.5rem; }
+.planner-workspace-with-map {
+  grid-template-columns: minmax(0, 1.15fr) minmax(18rem, 0.85fr);
+  align-items: start;
+}
+.route-fields,
+.planner-options { display: grid; gap: 1.25rem; min-width: 0; }
+.planner-options { grid-column: 1; }
+.selection-map {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  min-width: 0;
+  border-left: 1px solid var(--rule);
+  padding-left: 1.5rem;
+}
+
+@media (max-width: 52rem) {
+  .planner-workspace-with-map { grid-template-columns: minmax(0, 1fr); }
+  .selection-map {
+    grid-column: 1;
+    grid-row: auto;
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+    padding: 1.25rem 0 0;
+  }
+}
 
 .field { display: grid; gap: 0.4rem; position: relative; }
 .field > label {
@@ -326,6 +352,16 @@ main {
 .option[aria-selected='true'] { background: var(--accent-bg); }
 .option-name { font-weight: 600; }
 .option-meta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.stop-kind {
+  color: var(--text-soft);
+  border: 1px solid var(--rule-firm);
+  border-radius: 2px;
+  padding: 0.05rem 0.35rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
 .no-options { padding: 0.9rem; color: var(--text-soft); font-size: 0.9375rem; }
 
 /* -- route bullets --------------------------------------------------- */
@@ -339,6 +375,12 @@ main {
   flex: none;
 }
 .bullet-lg { width: 1.9em; height: 1.9em; font-size: 1.0625rem; }
+.bullet-bus {
+  width: auto;
+  min-width: 2.75em;
+  padding-inline: 0.4em;
+  border-radius: 2px;
+}
 
 /* -- access line ----------------------------------------------------- */
 
@@ -452,6 +494,74 @@ main {
   white-space: nowrap;
 }
 .alt-note { font-size: 0.75rem; color: var(--text-soft); }
+
+/* -- curb ramp detail ------------------------------------------------ */
+
+.ramps {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.ramps > summary {
+  min-height: var(--tap);
+  padding: 0.65rem 0.8rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.ramps > summary:hover { background: var(--surface-2); }
+.ramps > summary > span[aria-hidden] {
+  color: var(--accent);
+  transition: transform 120ms ease;
+}
+.ramps[open] > summary > span[aria-hidden] { transform: rotate(90deg); }
+.equipment-count {
+  margin-left: auto;
+  color: var(--text-soft);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.ramps-body { border-top: 1px solid var(--rule); padding: 0.9rem; display: grid; gap: 0.8rem; }
+.ramp-head { font-size: 0.875rem; }
+.ramp-head-bad { color: var(--warn); }
+.ramp-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.65rem; }
+.ramp {
+  border-left: 4px solid var(--rule-firm);
+  background: var(--surface-2);
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.6rem;
+}
+.ramp-ok { border-left-color: var(--go); }
+.ramp-bad { border-left-color: var(--warn); }
+.ramp-top { display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap; }
+.ramp-tag {
+  margin-left: auto;
+  color: var(--text-soft);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.ramp-ok .ramp-tag { color: var(--go); }
+.ramp-bad .ramp-tag { color: var(--warn); }
+.ramp-measures { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.45rem 1rem; }
+.ramp-measures div { min-width: 0; }
+.ramp-measures dt { color: var(--text-soft); font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.ramp-measures dd { margin: 0; font-size: 0.8125rem; font-weight: 600; }
+.ramp-issues { margin: 0; padding-left: 1.1rem; color: var(--warn); font-size: 0.8125rem; }
+.eq-why { color: var(--text-soft); font-size: 0.75rem; }
+
+@media (max-width: 30rem) {
+  .ramp-measures { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ramps > summary > span[aria-hidden] { transition: none; }
+}
 
 @media (max-width: 26rem) {
   .alt-action { margin-left: 0; }
@@ -582,7 +692,8 @@ main {
 
 /* -- map -------------------------------------------------------------- */
 
-.map-block { display: grid; gap: 0.9rem; justify-items: start; }
+.map-block { display: grid; gap: 0.9rem; width: 100%; }
+.map-block h3 { font-size: 1rem; }
 .map-block > [hidden] { display: none; }
 .map-block > div:not([hidden]) { display: grid; gap: 0.75rem; width: 100%; }
 
@@ -627,6 +738,38 @@ main {
   transform: translateY(0.1rem);
 }
 .map-note { font-size: 0.8125rem; color: var(--text-soft); }
+
+/* -- service-information disclosures -------------------------------- */
+
+.subsections {
+  margin-top: 2.5rem;
+  border-top: 2px solid var(--rule-firm);
+}
+.subsection { border-bottom: 1px solid var(--rule); }
+.subsection > summary {
+  min-height: 3.5rem;
+  padding: 0.75rem 0.8rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.subsection > summary:hover { background: var(--surface-2); }
+.subsection[open] > summary { background: var(--accent-bg); }
+.disclosure-arrow {
+  color: var(--accent);
+  flex: none;
+  transition: transform 120ms ease;
+}
+.subsection[open] .disclosure-arrow { transform: rotate(90deg); }
+.disclosure-copy { display: grid; gap: 0.1rem; min-width: 0; }
+.disclosure-copy strong { font-size: 0.9375rem; }
+.disclosure-copy > span { color: var(--text-soft); font-size: 0.75rem; }
+.subsection-body { border-top: 1px solid var(--rule); padding: 1.25rem 0.8rem 1.5rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .disclosure-arrow { transition: none; }
+}
 
 /* -- report form ----------------------------------------------------- */
 

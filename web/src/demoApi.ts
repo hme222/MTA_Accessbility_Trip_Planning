@@ -69,6 +69,30 @@ const stations: Station[] = [
     reason: 'Accessible in both directions in this demonstration snapshot.',
     routes: ['L'],
   },
+  {
+    stop_id: 'BUS_M42_7AV', stop_name: 'W 42 St & 7 Av', lat: 40.7559, lon: -73.9871,
+    mta_ada_status: '1', northbound: true, southbound: true, kind: 'bus',
+    reason: 'Representative M42 stop. MTA buses have a ramp or lift and kneel at the curb.',
+    routes: ['M42'],
+  },
+  {
+    stop_id: 'BUS_M42_8AV', stop_name: 'W 42 St & 8 Av', lat: 40.7571, lon: -73.9895,
+    mta_ada_status: '1', northbound: true, southbound: true, kind: 'bus',
+    reason: 'Representative M42 stop. MTA buses have a ramp or lift and kneel at the curb.',
+    routes: ['M42'],
+  },
+  {
+    stop_id: 'BUS_M7_59', stop_name: 'Columbus Circle & W 59 St', lat: 40.768, lon: -73.9829,
+    mta_ada_status: '1', northbound: true, southbound: true, kind: 'bus',
+    reason: 'Representative M7 and M104 stop. MTA buses have a ramp or lift and kneel at the curb.',
+    routes: ['M7', 'M104'],
+  },
+  {
+    stop_id: 'BUS_M14_UNION', stop_name: 'E 14 St & Union Square E', lat: 40.7349, lon: -73.989,
+    mta_ada_status: '1', northbound: true, southbound: true, kind: 'bus',
+    reason: 'Representative Select Bus Service stop. MTA buses have a ramp or lift and kneel at the curb.',
+    routes: ['M14A+', 'M14D+'],
+  },
 ];
 
 const stationById = new Map(stations.map((station) => [station.stop_id, station]));
@@ -184,29 +208,42 @@ function plan(params: Params): PlanResponse {
   const direction = routeDirection(origin, destination);
   const opposite: Direction = direction === 'northbound' ? 'southbound' : 'northbound';
   const shared = origin.routes.filter((route) => destination.routes.includes(route)).slice(0, 2);
+  const originIsBus = origin.kind === 'bus';
+  const destinationIsBus = destination.kind === 'bus';
+  const mixedMode = originIsBus !== destinationIsBus;
+  const mixedBusRoute = origin.kind === 'bus' ? origin.routes[0] : destination.kind === 'bus' ? destination.routes[0] : null;
+  const services = shared.length ? shared : mixedMode && mixedBusRoute ? [mixedBusRoute] : [];
   const after = String(params.after ?? '09:00:00');
 
   let severity: Severity = 'step_free';
   const advisories: string[] = [];
-  if (!origin[direction] || !destination[direction]) {
+  if (!mixedMode && origin.kind !== 'bus' && destination.kind !== 'bus' && (!origin[direction] || !destination[direction])) {
     severity = 'outbound_warning';
     advisories.push(`${direction === 'northbound' ? 'uptown' : 'downtown'} boarding or exit is not ADA accessible`);
-  } else if (!destination[opposite]) {
+  } else if (destination.kind !== 'bus' && !destination[opposite]) {
     severity = 'return_warning';
     advisories.push(`return trip from ${destination.stop_name} is not ADA accessible`);
   }
 
-  let trips: TripOption[] = shared.map((route, index) => {
+  if (mixedMode) {
+    advisories.push('includes a curb-to-entrance connection; review the ramp details and verify the walking path before travel');
+  }
+
+  let trips: TripOption[] = services.map((route, index) => {
     const depart = timePlus(after, 2 + index * 5);
+    const bus = origin.kind === 'bus' || destination.kind === 'bus';
     return {
       trip_id: `demo-${origin.stop_id}-${destination.stop_id}-${route}-${index}`,
       route_id: route,
       direction_id: direction === 'northbound' ? '0' : '1',
-      trip_headsign: direction === 'northbound' ? 'Uptown & Queens' : 'Downtown & Brooklyn',
+      trip_headsign: bus
+        ? ((destination.lon ?? 0) < (origin.lon ?? 0) ? 'Westbound' : 'Eastbound')
+        : direction === 'northbound' ? 'Uptown & Queens' : 'Downtown & Brooklyn',
       depart,
       arrive: timePlus(depart, 4 + index),
       severity,
       advisories,
+      mode: bus ? 'bus' : 'subway',
     };
   });
 
@@ -273,18 +310,57 @@ function alternatives(stopId: string, params: Params): Alternative[] {
 }
 
 function ramps(stopId: string): RampReport {
-  const rows = stopId === 'R14' ? [
+  const sampleRows = [
     {
       ramp_id: 'demo-ramp-1', street: '7 Av & W 57 St', running_slope: 7.4,
       cross_slope: 1.8, width_inches: 42, compliant: true, measured: true, issues: [],
+      detectable_warning: 'Good condition', surface_condition: 'Even', obstruction: null, ponding: false,
     },
     {
       ramp_id: 'demo-ramp-2', street: 'Broadway & W 57 St', running_slope: 10.1,
       cross_slope: 2.4, width_inches: 38, compliant: false, measured: true,
       issues: ['running slope exceeds 8.33%', 'cross slope exceeds 2.08%'],
+      detectable_warning: 'Fair condition', surface_condition: 'Cracked', obstruction: 'Utility cover near landing', ponding: true,
     },
-  ] : [];
+    {
+      ramp_id: 'demo-ramp-3', street: 'W 42 St & 7 Av', running_slope: 6.8,
+      cross_slope: 1.5, width_inches: 48, compliant: true, measured: true, issues: [],
+      detectable_warning: 'Good condition', surface_condition: 'Even', obstruction: null, ponding: false,
+    },
+    {
+      ramp_id: 'demo-ramp-4', street: 'W 42 St & 8 Av', running_slope: 9.2,
+      cross_slope: 1.9, width_inches: 40, compliant: false, measured: true,
+      issues: ['running slope exceeds 8.33%'], detectable_warning: 'Fair condition',
+      surface_condition: 'Worn', obstruction: null, ponding: false,
+    },
+    {
+      ramp_id: 'demo-ramp-5', street: 'Columbus Circle & W 59 St', running_slope: 7.1,
+      cross_slope: 1.6, width_inches: 44, compliant: true, measured: true, issues: [],
+      detectable_warning: 'Good condition', surface_condition: 'Even', obstruction: null, ponding: false,
+    },
+    {
+      ramp_id: 'demo-ramp-6', street: 'Broadway & W 60 St', running_slope: 8.7,
+      cross_slope: 2.2, width_inches: 35, compliant: false, measured: true,
+      issues: ['running slope exceeds 8.33%', 'cross slope exceeds 2.08%', 'width is under 36 in'],
+      detectable_warning: 'Worn', surface_condition: 'Uneven', obstruction: 'Signpost narrows the landing', ponding: false,
+    },
+    {
+      ramp_id: 'demo-ramp-7', street: 'E 14 St & Union Square E', running_slope: 7.8,
+      cross_slope: 1.7, width_inches: 45, compliant: true, measured: true, issues: [],
+      detectable_warning: 'Good condition', surface_condition: 'Even', obstruction: null, ponding: false,
+    },
+  ];
+  const rows = stopId === 'R14'
+    ? sampleRows.slice(0, 2)
+    : stopId === 'R16' || stopId.startsWith('BUS_M42')
+      ? sampleRows.slice(2, 4)
+      : stopId === 'A24' || stopId === 'BUS_M7_59'
+        ? sampleRows.slice(4, 6)
+        : stopId === 'R20' || stopId === 'L03' || stopId === 'BUS_M14_UNION'
+          ? [sampleRows[6]]
+          : [];
   return {
+    fetched_at: Date.parse(DEMO_SNAPSHOT_ISO) / 1000,
     total: rows.length,
     compliant: rows.filter((row) => row.compliant).length,
     substandard: rows.filter((row) => !row.compliant).length,
