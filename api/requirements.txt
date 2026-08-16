@@ -2,4 +2,3 @@ fastapi
 uvicorn[standard]
 pandas
 requests
-anthropic

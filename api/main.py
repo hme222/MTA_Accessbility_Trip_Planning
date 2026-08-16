@@ -24,7 +24,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import gtfs_accessibility as ga  # noqa: E402
 from api.feed import FeedCache  # noqa: E402
-from api import reasoning  # noqa: E402
 
 try:
     from zoneinfo import ZoneInfo
@@ -261,50 +260,6 @@ def station_equipment(stop_id: str):
     _require_feed()
     _station_or_404(stop_id)
     return cache.equipment_at(stop_id)
-
-
-class PathCheck(BaseModel):
-    available: bool
-    verdict: Optional[str] = None
-    confidence: Optional[str] = None
-    explanation: Optional[str] = None
-    equipment_used: List[str] = []
-    caveats: List[str] = []
-    model: Optional[str] = None
-    reason: Optional[str] = None
-
-
-@app.get("/stations/{stop_id}/path-check", response_model=PathCheck)
-def path_check(
-    stop_id: str,
-    from_route: str = Query(..., description="Line the rider arrives on"),
-    to_route: str = Query(..., description="Line the rider is boarding"),
-):
-    """Is the change between these two lines step-free inside this station?
-
-    The one question in this project that structured data cannot answer. GTFS
-    records which platforms are accessible, never whether the path *between*
-    them is -- that lives only in the MTA's free-text equipment descriptions
-    ("mezzanine to lower mezzanine A/C/E to downtown 1/2/3 platform").
-
-    A language model reads those descriptions here. It cannot override the
-    deterministic accessibility verdicts; it only answers the connection
-    question, and it is instructed that "unknown" is the correct answer
-    whenever the text does not clearly establish a path.
-    """
-    _require_feed()
-    station = _station_or_404(stop_id)
-
-    if not reasoning.configured():
-        return PathCheck(available=False, reason="not_configured")
-
-    result = reasoning.assess_transfer(
-        station["stop_name"], from_route, to_route, cache.all_equipment_at(stop_id)
-    )
-    if "error" in result:
-        return PathCheck(available=False, reason=result["error"])
-
-    return PathCheck(available=True, **result)
 
 
 @app.get("/plan", response_model=PlanResponse)
