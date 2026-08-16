@@ -18,6 +18,8 @@ import os
 import threading
 import time
 
+import requests
+
 import gtfs_accessibility as ga
 from Requests_MTA import rebuild_elevator_status
 
@@ -35,6 +37,13 @@ def _haversine_meters(lat1, lon1, lat2, lon2):
 # order of minutes, and a stale elevator status is worse than a slow one.
 OUTAGE_TTL_SECONDS = 120
 
+# Bus service alerts. The .json variant needs no protobuf toolchain and no API
+# key. Alerts change less often than elevator status, so a longer TTL.
+BUS_ALERTS_URL = (
+    "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/camsys%2Fbus-alerts.json"
+)
+BUS_ALERT_TTL_SECONDS = 300
+
 
 class FeedCache:
     """Holds one built feed in memory and serves it to `gtfs_accessibility`."""
@@ -49,6 +58,10 @@ class FeedCache:
         self._outages = None
         self._outages_at = 0.0
         self._outage_lock = threading.Lock()
+
+        self._bus = None
+        self._bus_at = 0.0
+        self._bus_lock = threading.Lock()
 
     # -- reader seam ------------------------------------------------------
 
@@ -255,6 +268,83 @@ class FeedCache:
             self._outages = self._summarize_outages(equipment)
             self._outages_at = time.time()
             return self._outages
+
+    # -- bus alerts -------------------------------------------------------
+
+    def bus_alerts(self, force=False):
+        """Current MTA bus service alerts.
+
+        Buses matter to this project more than their share of the network
+        suggests: every MTA bus is wheelchair accessible -- ramp or lift, plus
+        kneeling -- so when a station has no accessible route, the bus usually
+        does. That makes bus disruptions an accessibility problem, not a
+        footnote.
+
+        The `.json` variant of the feed is used deliberately: the protobuf
+        version carries a `mercury_alert` extension that the stock
+        gtfs-realtime schema drops silently. As JSON the extension fields are
+        ordinary keys, so no protobuf toolchain is needed.
+        """
+        with self._bus_lock:
+            fresh = time.time() - self._bus_at < BUS_ALERT_TTL_SECONDS
+            if self._bus is not None and fresh and not force:
+                return self._bus
+
+            try:
+                response = requests.get(BUS_ALERTS_URL, timeout=20)
+                response.raise_for_status()
+                payload = response.json()
+            except Exception as exc:  # network, JSON, or HTTP failure
+                # Serve stale data rather than nothing; a slightly old alert is
+                # far more useful to a rider than an error.
+                if self._bus is not None:
+                    return self._bus
+                return {"fetched_at": time.time(), "total": 0, "alerts": [], "error": str(exc)}
+
+            self._bus = self._summarize_bus_alerts(payload)
+            self._bus_at = time.time()
+            return self._bus
+
+    def _summarize_bus_alerts(self, payload):
+        def text_of(block):
+            translations = (block or {}).get("translation") or []
+            for item in translations:
+                if item.get("language", "en").startswith("en") and item.get("text"):
+                    return item["text"].strip()
+            return translations[0].get("text", "").strip() if translations else ""
+
+        alerts = []
+        for entity in payload.get("entity", []):
+            alert = entity.get("alert")
+            if not alert:
+                continue
+
+            routes = sorted(
+                {
+                    informed.get("route_id")
+                    for informed in alert.get("informed_entity", [])
+                    if informed.get("route_id")
+                }
+            )
+            if not routes:
+                continue
+
+            mercury = alert.get("transit_realtime.mercury_alert", {}) or {}
+            alerts.append(
+                {
+                    "id": entity.get("id", ""),
+                    "routes": routes,
+                    "header": text_of(alert.get("header_text")),
+                    "description": text_of(alert.get("description_text")),
+                    # The Mercury extension is where the human-readable
+                    # category lives; `effect` is frequently absent here.
+                    "alert_type": mercury.get("alert_type", ""),
+                    "updated_at": mercury.get("updated_at"),
+                }
+            )
+
+        alerts.sort(key=lambda a: (len(a["routes"]), a["routes"][0] if a["routes"] else ""))
+        return {"fetched_at": time.time(), "total": len(alerts), "alerts": alerts}
 
     def _summarize_outages(self, equipment):
         """Reduce the equipment database to what a rider needs to see.

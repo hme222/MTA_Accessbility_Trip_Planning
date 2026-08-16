@@ -177,6 +177,29 @@ export function describeDistance(meters: number): string {
   return `${(meters / 1609).toFixed(1)} miles away`;
 }
 
+export interface BusAlert {
+  id: string;
+  routes: string[];
+  header: string;
+  description: string;
+  alert_type: string;
+  updated_at: number | null;
+}
+
+export interface BusAlertResponse {
+  fetched_at: number;
+  total: number;
+  alerts: BusAlert[];
+  error?: string;
+}
+
+export function fetchBusAlerts(
+  route?: string,
+  signal?: AbortSignal,
+): Promise<BusAlertResponse> {
+  return get<BusAlertResponse>('/bus/alerts', { route, limit: 60 }, signal);
+}
+
 export interface Health {
   status: string;
   stations: number;

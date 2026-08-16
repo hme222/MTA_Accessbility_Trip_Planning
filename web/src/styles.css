@@ -747,3 +747,107 @@ footer div { width: min(100% - 2rem, 940px); margin-inline: auto; }
   .trip, .outage, .field input, .listbox { border-width: 2px; }
   :focus-visible { outline-width: 4px; }
 }
+
+/* -- auto refresh ----------------------------------------------------- */
+
+.refresh-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+}
+.refresh-stamp {
+  font-size: 0.8125rem;
+  color: var(--text-soft);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* -- about / case study ----------------------------------------------- */
+
+.about {
+  margin-top: 3rem;
+  border-top: 2px solid var(--rule);
+  padding-top: 1.5rem;
+}
+.about-summary {
+  font-weight: 700;
+  font-size: 1.0625rem;
+  cursor: pointer;
+  min-height: var(--tap);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+  /* The native marker duplicates the caret glyph we draw ourselves. */
+  list-style: none;
+}
+.about-summary::-webkit-details-marker { display: none; }
+.about-summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.about[open] .about-summary > span[aria-hidden] { transform: rotate(90deg); }
+.about-summary > span[aria-hidden] {
+  display: inline-block;
+  transition: transform 120ms ease;
+  color: var(--accent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .about-summary > span[aria-hidden] { transition: none; }
+}
+
+.about-body { display: grid; gap: 1.5rem; padding-top: 1rem; }
+.about-lede { color: var(--text-soft); max-width: 68ch; }
+.about-body h3 { font-size: 1.125rem; }
+
+.decisions { display: grid; gap: 0; }
+.decision {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem 2rem;
+  padding: 1.25rem 0;
+  border-top: 1px solid var(--rule);
+}
+.decision:last-child { border-bottom: 1px solid var(--rule); }
+.decision h4 {
+  grid-column: 1 / -1;
+  margin: 0 0 -0.25rem;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.decision .label {
+  display: block;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: var(--text-soft);
+  margin-bottom: 0.35rem;
+}
+.decision .call .label { color: var(--accent); }
+.decision p { font-size: 0.9375rem; }
+.decision .tension p { color: var(--text-soft); }
+
+@media (max-width: 40rem) {
+  .decision { grid-template-columns: 1fr; gap: 1rem; }
+  .decision h4 { margin-bottom: 0; }
+}
+
+.outcome {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 1.25rem;
+  padding: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+.outcome .num {
+  font-size: 1.625rem; font-weight: 700; letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.outcome .cap { margin-top: 0.4rem; font-size: 0.8125rem; color: var(--text-soft); line-height: 1.4; }

@@ -282,6 +282,27 @@ def plan(
     )
 
 
+@app.get("/bus/alerts")
+def bus_alerts(
+    route: Optional[str] = Query(None, description="Filter to one route, e.g. M14A+"),
+    limit: int = Query(60, ge=1, le=300),
+):
+    """Live MTA bus service alerts.
+
+    Every MTA bus is wheelchair accessible, so when a station has no accessible
+    route the bus usually does -- which makes a bus disruption an accessibility
+    problem rather than a footnote.
+    """
+    data = cache.bus_alerts()
+    alerts = data["alerts"]
+
+    if route:
+        needle = route.strip().upper()
+        alerts = [a for a in alerts if any(r.upper() == needle for r in a["routes"])]
+
+    return dict(data, alerts=alerts[:limit], total=len(alerts))
+
+
 @app.get("/outages")
 def outages(
     blocking_only: bool = Query(

@@ -34,11 +34,14 @@ import {
   spokenPlan,
 } from './components';
 import { ErrorBoundary } from './ErrorBoundary';
+import { About } from './About';
+import { Buses } from './Buses';
 import { Report } from './Report';
 import { TripMap } from './TripMap';
 import { useStations } from './useStations';
+import { useAutoRefresh, useAutoRefreshSetting } from './useAutoRefresh';
 
-type Panel = 'plan' | 'outages' | 'report';
+type Panel = 'plan' | 'outages' | 'buses' | 'report';
 
 export default function App() {
   const [panel, setPanel] = useState<Panel>('plan');
@@ -83,6 +86,16 @@ export default function App() {
 
         <div
           role="tabpanel"
+          id="panel-buses"
+          aria-labelledby="tab-buses"
+          tabIndex={-1}
+          hidden={panel !== 'buses'}
+        >
+          <ErrorBoundary>{panel === 'buses' ? <Buses /> : null}</ErrorBoundary>
+        </div>
+
+        <div
+          role="tabpanel"
           id="panel-report"
           aria-labelledby="tab-report"
           tabIndex={-1}
@@ -90,6 +103,7 @@ export default function App() {
         >
           <ErrorBoundary>{panel === 'report' ? <ReportPanel /> : null}</ErrorBoundary>
         </div>
+        <About />
       </main>
 
       <footer>
@@ -147,6 +161,7 @@ function Tabs({ panel, onChange }: { panel: Panel; onChange: (next: Panel) => vo
   const tabs: { key: Panel; label: string }[] = [
     { key: 'plan', label: 'Plan a trip' },
     { key: 'outages', label: 'Elevators' },
+    { key: 'buses', label: 'Buses' },
     { key: 'report', label: 'Report a problem' },
   ];
 
@@ -191,14 +206,18 @@ function Tabs({ panel, onChange }: { panel: Panel; onChange: (next: Panel) => vo
  */
 function Freshness() {
   const [builtAt, setBuiltAt] = useState<number | null>(null);
+  const [autoRefresh] = useAutoRefreshSetting();
 
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchHealth(controller.signal)
+  const read = useCallback(() => {
+    fetchHealth()
       .then((health) => setBuiltAt(health.feed_built_at))
       .catch(() => setBuiltAt(null));
-    return () => controller.abort();
   }, []);
+
+  useEffect(() => read(), [read]);
+  // Re-reads the clock, so "updated 4 minutes ago" does not sit frozen while
+  // the page stays open.
+  useAutoRefresh(read, autoRefresh);
 
   const age = describeAge(builtAt);
   if (!age) return null;
@@ -509,20 +528,30 @@ function Outages() {
   const [data, setData] = useState<OutageResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshedAt, setRefreshedAt] = useState<Date | null>(null);
+  const [autoRefresh, setAutoRefresh] = useAutoRefreshSetting();
 
-  const load = useCallback(() => {
-    setLoading(true);
+  const load = useCallback((quiet = false) => {
+    // A background refresh must not replace the list with a spinner; the user
+    // may be reading it.
+    if (!quiet) setLoading(true);
     setError(null);
     fetchOutages()
-      .then(setData)
-      .catch((err) => setError(err instanceof ApiError ? err.message : 'Could not load outages.'))
+      .then((result) => {
+        setData(result);
+        setRefreshedAt(new Date());
+      })
+      .catch((err) => {
+        if (!quiet) setError(err instanceof ApiError ? err.message : 'Could not load outages.');
+      })
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => load(), [load]);
+  useAutoRefresh(() => load(true), autoRefresh);
 
   if (loading) return <Loading label="Loading elevator outages…" />;
-  if (error) return <ErrorNotice message={error} onRetry={load} />;
+  if (error) return <ErrorNotice message={error} onRetry={() => load()} />;
   if (!data) return null;
 
   return (
@@ -532,9 +561,24 @@ function Outages() {
         <p className="results-count">
           {data.blocking} of {data.total} remove the accessible route
         </p>
-        <button type="button" className="btn btn-secondary" onClick={load}>
-          Refresh
+        <button type="button" className="btn btn-secondary" onClick={() => load()}>
+          Refresh now
         </button>
+      </div>
+
+      <div className="refresh-bar">
+        <Switch
+          label="Refresh every 5 minutes"
+          hint="Updates the list in place. It never reloads the page or moves your position."
+          checked={autoRefresh}
+          onChange={setAutoRefresh}
+        />
+        {/* Polite: useful to know, never worth interrupting for. */}
+        <p className="refresh-stamp" role="status">
+          {refreshedAt
+            ? `Updated ${refreshedAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
+            : ''}
+        </p>
       </div>
 
       {data.outages.length === 0 ? (
