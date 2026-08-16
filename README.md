@@ -53,8 +53,34 @@ A router doing `stop_times` → `stops` lookups gets this right for free.
 
 | Source | Provides |
 |---|---|
-| [MTA Subway Stations](https://data.ny.gov/resource/39hk-dx4f.json) | Static ADA baseline, incl. `ada_northbound` / `ada_southbound` |
+| [MTA Subway Stations](https://data.ny.gov/resource/39hk-dx4f.json) (NY State Open Data) | Static ADA baseline, incl. `ada_northbound` / `ada_southbound` |
 | MTA E&E API (`Requests_MTA.py`) | Live elevator/escalator outages |
+| MTA bus alerts (`camsys%2Fbus-alerts.json`) | Live bus service alerts, no API key |
+| [NYC Pedestrian Ramps](https://data.cityofnewyork.us/resource/ufzp-rrqu.json) (NYC Open Data) | 217,679 curb ramps with ADA measurements |
+
+### Curb ramps — does the walk actually work?
+
+The app tells riders to walk to a nearby accessible station. A station 700 m
+away is useless if the corners in between have no curb cuts, so `api/ramps.py`
+scores every ramp near a station against the **ADA Standards for Accessible
+Design** — not house rules:
+
+| Measure | ADA limit |
+|---|---|
+| Running slope | ≤ 8.33% (1:12, §405.2) |
+| Cross slope | ≤ 2.08% (1:48, §405.3) |
+| Clear width | ≥ 36 in (§405.5) |
+| Detectable warning surface | required (§705) |
+
+The result is blunt. Around **59 St-Columbus Circle** — the station this app
+recommends as an accessible alternative — 65 ramps are published and **only 13
+meet the standard**. Broadway's is at 10.1%, half again the ADA maximum, with a
+defective warning surface.
+
+A ramp that misses a threshold is reported as *substandard*, not absent: it
+exists and some riders manage it. What the app must not do is imply the walk is
+fine when the measurements say otherwise. Unmeasured values are counted as
+unverified rather than compliant — absence of evidence is not compliance.
 
 Both join to GTFS parent station IDs exactly — 496/496 for the stations dataset,
 193/193 for equipment (`elevatorsgtfsstopid`). No name matching anywhere.
@@ -203,6 +229,7 @@ Interactive docs at `/docs`.
 | `GET /plan/transfers` | Journeys with one change of train |
 | `GET /outages` | Live equipment outages. `?blocking_only=true` |
 | `GET /bus/alerts` | Live bus service alerts. `?route=` |
+| `GET /stations/{stop_id}/ramps` | Curb ramp quality nearby, scored against the ADA |
 
 `/plan` defaults `date` and `after` to now in `America/New_York`, since a phone
 asking for a trip means *now* rather than *every service pattern in the feed*.

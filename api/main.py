@@ -24,6 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import gtfs_accessibility as ga  # noqa: E402
 from api.feed import FeedCache  # noqa: E402
+from api import ramps as ramp_data  # noqa: E402
 
 try:
     from zoneinfo import ZoneInfo
@@ -260,6 +261,44 @@ def station_equipment(stop_id: str):
     _require_feed()
     _station_or_404(stop_id)
     return cache.equipment_at(stop_id)
+
+
+class Ramp(BaseModel):
+    ramp_id: str
+    street: str = ""
+    running_slope: Optional[float] = None
+    cross_slope: Optional[float] = None
+    width_inches: Optional[float] = None
+    compliant: bool
+    measured: bool
+    issues: List[str] = []
+
+
+class RampReport(BaseModel):
+    total: int
+    compliant: int
+    substandard: int
+    unverified: int
+    ramps: List[Ramp] = []
+    error: Optional[str] = None
+
+
+@app.get("/stations/{stop_id}/ramps", response_model=RampReport)
+def station_ramps(
+    stop_id: str,
+    meters: int = Query(200, ge=50, le=800, description="Search radius"),
+):
+    """Curb ramp quality around a station, from NYC Open Data.
+
+    The app tells riders to walk to a nearby accessible station; this says
+    whether that walk is actually passable. NYC DOT publishes every pedestrian
+    ramp with the measurements the ADA specifies -- running slope, cross slope,
+    width, detectable warning surface -- so each corner is scored against the
+    real standard rather than assumed usable.
+    """
+    _require_feed()
+    station = _station_or_404(stop_id)
+    return ramp_data.near(station["lat"], station["lon"], meters=meters)
 
 
 @app.get("/plan", response_model=PlanResponse)
