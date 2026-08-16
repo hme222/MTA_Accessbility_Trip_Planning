@@ -195,11 +195,13 @@ Interactive docs at `/docs`.
 
 | Endpoint | Returns |
 |---|---|
-| `GET /health` | Feed directory, load state, station count |
+| `GET /health` | Feed directory, load state, station count, feed build time |
 | `GET /stations` | All 496 parent stations. `?q=` name search, `?direction=N\|S` |
 | `GET /stations/{stop_id}` | One station |
+| `GET /stations/{stop_id}/alternatives` | Nearby accessible stations, for when this one is not |
 | `GET /plan` | `?origin=&destination=` plus optional `date`, `after`, `limit` |
 | `GET /outages` | Live equipment outages. `?blocking_only=true` |
+| `GET /bus/alerts` | Live bus service alerts. `?route=` |
 
 `/plan` defaults `date` and `after` to now in `America/New_York`, since a phone
 asking for a trip means *now* rather than *every service pattern in the feed*.
@@ -251,7 +253,47 @@ Accessibility is a requirement here, not a feature:
   for failures.
 - Targets are at least 44px; `prefers-reduced-motion` is respected.
 
-See `docs/accessibility-review.md` for the open findings.
+### What the app does
+
+| Panel | |
+|---|---|
+| **Plan a trip** | Departures with advisories, a date and time to plan ahead, and an optional map |
+| **Elevators** | Live outages, with blocking distinguished from merely informational |
+| **Buses** | Service alerts — every MTA bus is wheelchair accessible, so this is often the only accessible option on a corridor |
+| **Report a problem** | Composes a structured report for the rider to file. It does **not** submit anywhere, and says so |
+
+Two features worth calling out:
+
+**Accessible alternatives.** When a chosen station is not accessible, the app
+offers nearby ones that are, each a single press to swap in. Suggestions prefer
+stations sharing a route with the original before falling back to proximity — an
+accessible station on an unrelated line rarely helps. Distances are
+straight-line and labeled as such.
+
+**Auto-refresh refreshes the data, not the page.** Reloading the document every
+five minutes would discard selections and results, cut off a screen reader
+mid-sentence, drop focus to the top, and destroy a half-written report. The
+refresh is in-place, never moves focus, pauses while the tab is hidden, and can
+be switched off (WCAG 2.2.1).
+
+### Contrast
+
+Every color pair is computed rather than eyeballed. Both themes clear **AAA
+(7:1)** for text and AA (3:1) for control boundaries.
+
+White text fails on five MTA line bullets — orange 2.98:1, G 2.31:1, S 3.90:1,
+red 4.05:1, green 4.01:1 — so those take dark text instead. The published hues
+are never altered: the hue is the recognition cue a rider actually uses, and
+darkening enough to rescue white text would have cost orange 21% and the G 31%
+of their luminance.
+
+### Conformance, honestly
+
+**AA as far as static analysis and computed contrast can verify, with AAA
+contrast.** Not certified beyond that: several criteria can only be confirmed by
+testing with real assistive technology. Full AAA is also out of reach for this
+content — 3.1.5 (reading level) and 3.1.3/3.1.4 (glossary for GTFS, ADA, and
+similar) are not satisfiable for a technical transit tool.
 
 ## Project page
 
