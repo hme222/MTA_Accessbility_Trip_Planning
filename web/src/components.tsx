@@ -14,6 +14,8 @@ import { speak, speechSupported, stop as stopSpeech } from './speech';
 import type {
   Alternative,
   Equipment,
+  Ramp,
+  RampReport,
   StationEquipment,
   Severity,
   Station,
@@ -27,6 +29,7 @@ import {
   durationMinutes,
   fetchAlternatives,
   fetchAllEquipment,
+  fetchRamps,
   fetchEquipment,
   formatOutageTime,
   formatTime,
@@ -495,7 +498,118 @@ export function Alternatives({
         Distances are straight-line, so the walk is longer. Your choice is unchanged until
         you pick one.
       </p>
+
+      {items[0] ? (
+        <RampQuality stopId={items[0].stop_id} stationName={items[0].stop_name} />
+      ) : null}
     </section>
+  );
+}
+
+/**
+ * Curb ramp quality on the walk to a suggested station.
+ *
+ * Telling a rider to walk 700 m to an accessible station is only useful if the
+ * corners in between have curb cuts. NYC DOT publishes every pedestrian ramp
+ * with the measurements the ADA specifies, so this scores the walk against the
+ * real standard instead of assuming it works.
+ *
+ * A ramp that misses a threshold is shown as substandard rather than absent —
+ * it exists, and some riders manage it. The same "warn, never block" posture
+ * the rest of the app takes. What it must not do is imply the walk is fine
+ * when the measurements say otherwise.
+ */
+export function RampQuality({ stopId, stationName }: { stopId: string; stationName: string }) {
+  const [report, setReport] = useState<RampReport | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open || loaded) return;
+    const controller = new AbortController();
+    fetchRamps(stopId, 200, controller.signal)
+      .then(setReport)
+      .catch(() => setReport(null))
+      .finally(() => setLoaded(true));
+    return () => controller.abort();
+  }, [open, loaded, stopId]);
+
+  const share =
+    report && report.total > 0 ? Math.round((report.compliant / report.total) * 100) : null;
+
+  return (
+    <details
+      className="ramps"
+      onToggle={(event) => setOpen((event.target as HTMLDetailsElement).open)}
+    >
+      <summary>
+        <span aria-hidden="true">▸</span>
+        Curb ramps on the walk to {stationName}
+        {loaded && report ? (
+          <span className="equipment-count">
+            {report.compliant} of {report.total} meet ADA
+          </span>
+        ) : null}
+      </summary>
+
+      <div className="ramps-body">
+        {!loaded ? (
+          <p className="eq-meta">Loading…</p>
+        ) : !report || report.error ? (
+          <p className="eq-meta">Curb ramp data is unavailable right now.</p>
+        ) : report.total === 0 ? (
+          <p className="eq-meta">No pedestrian ramps published within 200 m of this station.</p>
+        ) : (
+          <>
+            {/* The headline number, stated plainly — this is the finding. */}
+            <p className={share !== null && share < 50 ? 'ramp-head ramp-head-bad' : 'ramp-head'}>
+              <strong>
+                {report.compliant} of {report.total} nearby ramps
+              </strong>{' '}
+              meet the ADA standard
+              {report.substandard > 0 ? <> · {report.substandard} fall short</> : null}
+              {report.unverified > 0 ? <> · {report.unverified} unmeasured</> : null}.
+            </p>
+
+            <ul className="ramp-list">
+              {report.ramps.slice(0, 6).map((ramp) => (
+                <RampRow key={ramp.ramp_id} ramp={ramp} />
+              ))}
+            </ul>
+
+            <p className="eq-why">
+              Scored against the ADA Standards for Accessible Design: running slope at most
+              8.33%, cross slope at most 2.08%, clear width at least 36 inches, and a detectable
+              warning surface. Ramps that fall short are listed, not hidden — many riders still
+              manage them. Source: NYC Open Data.
+            </p>
+          </>
+        )}
+      </div>
+    </details>
+  );
+}
+
+function RampRow({ ramp }: { ramp: Ramp }) {
+  return (
+    <li className={ramp.compliant ? 'ramp ramp-ok' : 'ramp ramp-bad'}>
+      <span className="ramp-top">
+        <strong>{ramp.street || `Ramp ${ramp.ramp_id}`}</strong>
+        <span className="ramp-tag">{ramp.compliant ? 'MEETS ADA' : 'BELOW STANDARD'}</span>
+      </span>
+      <span className="ramp-measures">
+        {ramp.running_slope !== null ? <>slope {ramp.running_slope}% · </> : null}
+        {ramp.cross_slope !== null ? <>cross {ramp.cross_slope}% · </> : null}
+        {ramp.width_inches !== null ? <>width {Math.round(ramp.width_inches)} in</> : null}
+      </span>
+      {ramp.issues.length > 0 ? (
+        <ul className="ramp-issues">
+          {ramp.issues.map((issue) => (
+            <li key={issue}>{issue}</li>
+          ))}
+        </ul>
+      ) : null}
+    </li>
   );
 }
 

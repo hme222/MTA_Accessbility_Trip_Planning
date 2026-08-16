@@ -177,6 +177,38 @@ export function describeDistance(meters: number): string {
   return `${(meters / 1609).toFixed(1)} miles away`;
 }
 
+export interface Ramp {
+  ramp_id: string;
+  street: string;
+  running_slope: number | null;
+  cross_slope: number | null;
+  width_inches: number | null;
+  compliant: boolean;
+  measured: boolean;
+  issues: string[];
+}
+
+export interface RampReport {
+  total: number;
+  compliant: number;
+  substandard: number;
+  unverified: number;
+  ramps: Ramp[];
+  error?: string | null;
+}
+
+export function fetchRamps(
+  stopId: string,
+  meters = 200,
+  signal?: AbortSignal,
+): Promise<RampReport> {
+  return get<RampReport>(
+    `/stations/${encodeURIComponent(stopId)}/ramps`,
+    { meters },
+    signal,
+  );
+}
+
 export interface StationEquipment {
   equipment: string;
   type: 'elevator' | 'escalator';
