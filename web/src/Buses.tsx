@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import type { BusAlertResponse } from './api';
-import { ApiError, fetchBusAlerts } from './api';
+import { ApiError, DATA_MODE, fetchBusAlerts } from './api';
 import { ErrorNotice, Loading } from './components';
 import { useAutoRefresh, useAutoRefreshSetting } from './useAutoRefresh';
 import { Switch } from './components';
@@ -38,7 +38,7 @@ export function Buses() {
   }, []);
 
   useEffect(() => load(), [load]);
-  useAutoRefresh(() => load(true), autoRefresh);
+  useAutoRefresh(() => load(true), DATA_MODE === 'live' && autoRefresh);
 
   if (loading) return <Loading label="Loading bus alerts…" />;
   if (error) return <ErrorNotice message={error} onRetry={() => load()} />;
@@ -82,12 +82,16 @@ export function Buses() {
       </div>
 
       <div className="refresh-bar" style={{ marginTop: '1rem' }}>
-        <Switch
-          label="Refresh every 5 minutes"
-          hint="Updates the list in place. It never reloads the page or moves your position."
-          checked={autoRefresh}
-          onChange={setAutoRefresh}
-        />
+        {DATA_MODE === 'live' ? (
+          <Switch
+            label="Refresh every 5 minutes"
+            hint="Updates the list in place. It never reloads the page or moves your position."
+            checked={autoRefresh}
+            onChange={setAutoRefresh}
+          />
+        ) : (
+          <p className="snapshot-static">Snapshot alerts do not refresh.</p>
+        )}
         <p className="refresh-stamp" role="status">
           {alerts.length} of {data.total} alert{data.total === 1 ? '' : 's'}
         </p>

@@ -13,6 +13,7 @@ gtfs_accessible/
 !package-lock.json
 !mobile/app.json
 !mobile/tsconfig.json
+!web/tsconfig.json
 
 # Node / Expo
 node_modules/

@@ -258,7 +258,7 @@ export function StationCombobox({
         type="text"
         role="combobox"
         aria-expanded={open}
-        aria-controls={listId}
+        aria-controls={open ? listId : undefined}
         aria-autocomplete="list"
         aria-activedescendant={activeId}
         aria-describedby={value ? `${inputId}-status` : undefined}

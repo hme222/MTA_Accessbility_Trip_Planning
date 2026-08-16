@@ -490,6 +490,22 @@ footer a { color: #FFFFFF; }
 footer .wrap { display: flex; flex-wrap: wrap; gap: 1rem 2rem; align-items: baseline; }
 footer p { max-width: 60ch; }
 
+.hero-actions { margin-top: 1.75rem; display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.hero-action {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 1rem;
+  background: var(--panel-text);
+  color: var(--panel);
+  border: 1px solid var(--panel-text);
+  border-radius: 3px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.hero-action:hover { background: transparent; color: var(--panel-text); }
+
 @media (prefers-reduced-motion: no-preference) {
   html { scroll-behavior: smooth; }
 }
@@ -509,6 +525,7 @@ footer p { max-width: 60ch; }
       Accessible Transit
     </span>
     <nav aria-label="Sections">
+      <a href="./app/">Trip planner</a>
       <a href="#problem">Problem</a>
       <a href="#how">How it works</a>
       <a href="#scope">Scope</a>
@@ -547,6 +564,12 @@ footer p { max-width: 60ch; }
       can get back.
     </p>
 
+    <div class="hero-actions">
+      <a class="hero-action" href="./app/">
+        Open the trip planner <span aria-hidden="true">→</span>
+      </a>
+    </div>
+
     <div class="stats">
       <div class="stat">
         <div class="num">140<span style="color:#787F8B">/496</span></div>
@@ -562,7 +585,7 @@ footer p { max-width: 60ch; }
       </div>
       <div class="stat">
         <div class="num">24</div>
-        <div class="cap">Stations downgraded by outages right now</div>
+        <div class="cap">Stations downgraded in the source snapshot</div>
       </div>
     </div>
   </div>
@@ -779,7 +802,7 @@ footer p { max-width: 60ch; }
     <h2 id="scope-h">What this is, and what it is not.</h2>
     <p class="section-intro measure">
       Three pieces: a data layer that produces an augmented GTFS feed, a JSON API
-      that serves it, and a mobile app built for the riders who need it.
+      that serves it, and an accessible web app built for the riders who need it.
     </p>
 
     <div class="scope">
@@ -791,14 +814,14 @@ footer p { max-width: 60ch; }
           <li><strong>Return-trip risk detection</strong> — every trip annotated with the one-way traps along its route</li>
           <li><strong>Augmented GTFS export</strong> — a drop-in feed any standard router can consume</li>
           <li><strong>JSON API</strong> — FastAPI over an in-memory feed; trip queries in ~0.1s</li>
-          <li><strong>Mobile app</strong> — React Native, screen-reader first, live elevator status</li>
+          <li><strong>Web app</strong> — React, screen-reader first, with trip planning, transfers, equipment detail, and a clearly labeled static demonstration</li>
+          <li><strong>Transfers</strong> — representative journeys with one change and explicit in-station uncertainty</li>
         </ul>
       </div>
 
       <div class="scope-col">
         <h3>Next <span class="tag tag-next">Planned</span></h3>
         <ul>
-          <li><strong>Transfers</strong> — the planner currently covers single-train trips only</li>
           <li><strong>Realtime arrivals</strong> — the GTFS-RT feeds are reachable and mapped, not yet wired in</li>
           <li><strong>Scheduled rebuilds</strong> — the feed is a snapshot; outages change hourly</li>
           <li><strong>Station entrance detail</strong> — which specific entrance has the elevator</li>
@@ -811,7 +834,7 @@ footer p { max-width: 60ch; }
           <li><strong>Deciding for the rider</strong> — the data advises; it does not hide options</li>
           <li><strong>Name matching</strong> — every join is on a published identifier or it does not ship</li>
           <li><strong>Direction-mapped outages</strong> — the feed does not map an elevator to a direction, so a blocking outage conservatively takes out both</li>
-          <li><strong>Buses, LIRR, Metro-North</strong> — subway only, for now</li>
+          <li><strong>LIRR and Metro-North trip planning</strong> — subway routing remains the core planning scope</li>
         </ul>
       </div>
     </div>
@@ -954,7 +977,7 @@ cd web &amp;&amp; npm run dev</code></pre>
       </div>
       <div>
         <div class="num">26</div>
-        <div class="cap">Stations below their published baseline right now, from live outages</div>
+        <div class="cap">Stations below their published baseline in the source snapshot</div>
       </div>
     </div>
 
@@ -966,9 +989,9 @@ cd web &amp;&amp; npm run dev</code></pre>
         you resolve to the platform instead.
       </p>
       <p class="quiet">
-        The honest limitation: this plans single-train trips only. Because the accessible
-        network is sparse, many real journeys need a transfer — which makes transfer
-        support the next thing that matters, not a nice-to-have.
+        The honest limitation: the live FastAPI service still needs a public host and a
+        scheduled feed rebuild before this can support real travel decisions. The Pages
+        app therefore uses a small, dated demonstration dataset and says so before the form.
       </p>
     </div>
   </div>
@@ -983,7 +1006,7 @@ cd web &amp;&amp; npm run dev</code></pre>
       feeds. Accessibility figures reflect the feed at build time — outages change
       hourly, so a rider-facing deployment rebuilds on a schedule.
     </p>
-    <p><a href="https://github.com/">Source on GitHub</a></p>
+    <p><a href="https://github.com/hme222/MTA_Accessbility_Trip_Planning">Source on GitHub</a></p>
   </div>
 </footer>
 

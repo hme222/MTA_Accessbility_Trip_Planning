@@ -65,8 +65,15 @@ export interface OutageResponse {
   outages: Outage[];
 }
 
-/** Dev goes through the Vite proxy; production needs an absolute backend URL. */
-const BASE_URL = (import.meta.env.VITE_API_URL ?? '/api').replace(/\/$/, '');
+/**
+ * A configured backend selects live mode. Without one, the static Pages build
+ * uses the bounded demonstration adapter instead of issuing doomed `/api`
+ * requests to GitHub Pages.
+ */
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
+export const DATA_MODE = configuredApiUrl ? 'live' : 'demo';
+export const IS_DEMO = DATA_MODE === 'demo';
+const BASE_URL = (configuredApiUrl || '/api').replace(/\/$/, '');
 
 export class ApiError extends Error {
   status?: number;
@@ -82,6 +89,11 @@ async function get<T>(
   params: Record<string, string | number | boolean | undefined> = {},
   signal?: AbortSignal,
 ): Promise<T> {
+  if (IS_DEMO) {
+    const { demoGet } = await import('./demoApi');
+    return demoGet<T>(path, params, signal);
+  }
+
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== '') query.set(key, String(value));
@@ -95,7 +107,9 @@ async function get<T>(
     if (err instanceof DOMException && err.name === 'AbortError') throw err;
     // Nearly always the backend not running. Say that, rather than "Failed to fetch".
     throw new ApiError(
-      'Could not reach the trip planning service. Start it with: uvicorn api.main:app --port 8000',
+      import.meta.env.DEV
+        ? 'Could not reach the trip planning service. Start it with: uvicorn api.main:app --port 8000'
+        : 'The live trip service could not be reached. Your choices are still here; try again.',
     );
   }
 

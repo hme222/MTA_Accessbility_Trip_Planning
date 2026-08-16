@@ -1,9 +1,8 @@
 /**
  * Accessible Transit — root.
  *
- * Two panels, deliberately shallow. Deep navigation costs a screen reader user
- * real time, and this app has exactly two jobs: plan a trip, check the
- * elevators.
+ * Three shallow panels. Deep navigation costs a screen reader user real time,
+ * so planning, planned outages, and report composition stay in one document.
  *
  * The rule inherited from the data layer holds throughout the UI:
  * **accessibility warns, it never blocks.** Nothing is hidden from a rider.
@@ -22,6 +21,7 @@ import type {
 import {
   accessSummary,
   ApiError,
+  DATA_MODE,
   describeAge,
   fetchHealth,
   fetchOutages,
@@ -70,6 +70,7 @@ export default function App() {
         <h1 className="sr-only">Accessible Transit — NYC subway trip planning</h1>
 
         <Tabs panel={panel} onChange={setPanel} />
+        <DataModeNotice />
 
         {/* Both panels stay mounted so each tab's aria-controls always points
             at an element that exists. Rendering only the active one leaves the
@@ -109,8 +110,9 @@ export default function App() {
 
       <footer>
         <div>
-          Built on the MTA's public GTFS, Subway Stations, and Elevator &amp; Escalator feeds.
-          Accessibility reflects the feed at build time — outages change hourly.
+          {DATA_MODE === 'demo'
+            ? 'Demonstration data only — not current MTA service information and not for travel decisions.'
+            : "Built on the MTA's public GTFS, Subway Stations, and Elevator & Escalator feeds. Accessibility reflects the feed at build time — outages change hourly."}
         </div>
       </footer>
 
@@ -172,6 +174,24 @@ const TABS: { key: Panel; label: string }[] = [
   { key: 'planned', label: 'Planned outages' },
   { key: 'report', label: 'Report a problem' },
 ];
+
+function DataModeNotice() {
+  if (DATA_MODE !== 'demo') return null;
+
+  return (
+    <aside className="data-mode" aria-labelledby="data-mode-title">
+      <h2 id="data-mode-title">
+        <span aria-hidden="true">ⓘ</span> Demonstration snapshot
+      </h2>
+      <p>
+        This static version uses a small representative dataset dated August 16, 2026. It is not
+        current MTA service information and must not be used to make travel decisions. Try{' '}
+        <strong>Times Sq-42 St to 49 St</strong> to see the return-trip warning.
+      </p>
+      <a href="../">Read the project notes and data limitations</a>
+    </aside>
+  );
+}
 
 function Tabs({ panel, onChange }: { panel: Panel; onChange: (next: Panel) => void }) {
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -253,7 +273,9 @@ function Freshness() {
   useEffect(() => read(), [read]);
   // Re-reads the clock, so "updated 4 minutes ago" does not sit frozen while
   // the page stays open.
-  useAutoRefresh(read, autoRefresh);
+  useAutoRefresh(read, DATA_MODE === 'live' && autoRefresh);
+
+  if (DATA_MODE === 'demo') return null;
 
   const age = describeAge(builtAt);
   if (!age) return null;
@@ -439,9 +461,8 @@ function Planner() {
         {/* Stated before the search, not after an empty result. Discovering a
             limitation through failure is the most expensive way to learn it. */}
         <p className="form-help" id="planner-scope">
-          This planner covers <strong>single-train trips only</strong> — journeys that need a
-          transfer will not appear. Because only 140 of 496 stations are fully ADA accessible, many
-          accessible routes do require one.
+          Direct trips appear first. The planner also checks a bounded set of journeys with{' '}
+          <strong>one change</strong>; more complex journeys are not included.
         </p>
 
         <div className="controls">
@@ -483,7 +504,10 @@ function Planner() {
       {/* Elevator and bus status belong with trip planning rather than off in
           their own tabs: they are what a rider checks about the trip they are
           about to take. Collapsed so they do not bury the planner. */}
-      <section className="subsections" aria-label="Live service information">
+      <section
+        className="subsections"
+        aria-label={DATA_MODE === 'demo' ? 'Demonstration service information' : 'Live service information'}
+      >
         <details className="subsection">
           <summary><span aria-hidden="true">▸</span> Elevator &amp; escalator outages</summary>
           <div className="subsection-body">
@@ -616,8 +640,8 @@ function Results({
             </p>
           ) : (
             <p>
-              No direct service between these stations at that time. This planner covers
-              single-train trips only — a route needing a transfer will not appear.
+              No direct service between these stations at that time. One-change options, when
+              available, appear below.
             </p>
           )}
         </div>
@@ -666,7 +690,7 @@ function Outages() {
   }, []);
 
   useEffect(() => load(), [load]);
-  useAutoRefresh(() => load(true), autoRefresh);
+  useAutoRefresh(() => load(true), DATA_MODE === 'live' && autoRefresh);
 
   if (loading) return <Loading label="Loading elevator outages…" />;
   if (error) return <ErrorNotice message={error} onRetry={() => load()} />;
@@ -679,25 +703,31 @@ function Outages() {
         <p className="results-count">
           {data.blocking} of {data.total} remove the accessible route
         </p>
-        <button type="button" className="btn btn-secondary" onClick={() => load()}>
-          Refresh now
-        </button>
+        {DATA_MODE === 'live' ? (
+          <button type="button" className="btn btn-secondary" onClick={() => load()}>
+            Refresh now
+          </button>
+        ) : null}
       </div>
 
-      <div className="refresh-bar">
-        <Switch
-          label="Refresh every 5 minutes"
-          hint="Updates the list in place. It never reloads the page or moves your position."
-          checked={autoRefresh}
-          onChange={setAutoRefresh}
-        />
-        {/* Polite: useful to know, never worth interrupting for. */}
-        <p className="refresh-stamp" role="status">
-          {refreshedAt
-            ? `Updated ${refreshedAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
-            : ''}
-        </p>
-      </div>
+      {DATA_MODE === 'live' ? (
+        <div className="refresh-bar">
+          <Switch
+            label="Refresh every 5 minutes"
+            hint="Updates the list in place. It never reloads the page or moves your position."
+            checked={autoRefresh}
+            onChange={setAutoRefresh}
+          />
+          {/* Polite: useful to know, never worth interrupting for. */}
+          <p className="refresh-stamp" role="status">
+            {refreshedAt
+              ? `Updated ${refreshedAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
+              : ''}
+          </p>
+        </div>
+      ) : (
+        <p className="snapshot-static">Snapshot outage records do not refresh.</p>
+      )}
 
       {data.outages.length === 0 ? (
         <div className="notice notice-plain">

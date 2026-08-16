@@ -252,18 +252,33 @@ script directly is unaffected.
 
 ## Web app
 
-```
+```bash
 cd web
-npm install
+npm ci
 npm run dev           # http://localhost:5173
 ```
 
-Vite proxies `/api` to `127.0.0.1:8000`, so the browser only makes same-origin
-requests and CORS never enters into it. Override the target with `API_TARGET` in
-development, or `VITE_API_URL` for a build pointed at a deployed backend.
+Vite proxies `/api` to `127.0.0.1:8000` during development, so the browser only
+makes same-origin requests and CORS never enters into it. Override the target
+with `API_TARGET` in development.
 
-Two panels: plan a trip, and check elevators. The design follows the same rule as
-the data layer — **it warns, it never blocks**. Every station appears in the
+Without `VITE_API_URL`, a production build uses the clearly labeled, bounded
+demonstration adapter in `web/src/demoApi.ts`. This is the GitHub Pages mode and
+does not make network requests or claim current service data. Point a live build
+at a deployed backend explicitly:
+
+```bash
+VITE_API_URL=https://your-api.example.com npm run build
+```
+
+The default production base is
+`/MTA_Accessbility_Trip_Planning/app/`, and Vite writes the result to
+`docs/app/` so it can be published beside the project page. Override the base
+with `VITE_BASE_PATH` for another host.
+
+Three shallow panels cover trip planning, planned outages, and report
+composition. The design follows the same rule as the data layer — **it warns,
+it never blocks**. Every station appears in the
 picker with its status labeled, including stations with no step-free access at
 all, and "step-free trips only" is opt-in with its consequence spelled out.
 

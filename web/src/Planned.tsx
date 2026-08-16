@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { PlannedOutage, PlannedOutageResponse } from './api';
-import { ApiError, fetchPlannedOutages, formatOutageTime } from './api';
+import { ApiError, DATA_MODE, fetchPlannedOutages, formatOutageTime } from './api';
 import { ErrorNotice, Loading, Switch } from './components';
 import { useAutoRefresh, useAutoRefreshSetting } from './useAutoRefresh';
 
@@ -51,7 +51,7 @@ export function Planned() {
   }, []);
 
   useEffect(() => load(), [load]);
-  useAutoRefresh(() => load(true), autoRefresh);
+  useAutoRefresh(() => load(true), DATA_MODE === 'live' && autoRefresh);
 
   const grouped = useMemo(() => {
     if (!data) return [];
