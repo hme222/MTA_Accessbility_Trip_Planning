@@ -8,7 +8,7 @@ but whether they can get back.
 |---|---|
 | `gtfs_accessibility.py` | Builds an augmented copy of the MTA static feed |
 | `api/` | FastAPI service over the built feed |
-| `mobile/` | React Native (Expo) app |
+| `web/` | React + Vite app |
 | `docs/` | Project page, served by GitHub Pages |
 
 ```
