@@ -177,6 +177,28 @@ export function describeDistance(meters: number): string {
   return `${(meters / 1609).toFixed(1)} miles away`;
 }
 
+export interface StationEquipment {
+  equipment: string;
+  type: 'elevator' | 'escalator';
+  serving: string;
+  ada: boolean;
+  redundant: boolean;
+  working: boolean;
+  reason: string;
+  estimated_return: string;
+}
+
+export function fetchAllEquipment(
+  stopId: string,
+  signal?: AbortSignal,
+): Promise<StationEquipment[]> {
+  return get<StationEquipment[]>(
+    `/stations/${encodeURIComponent(stopId)}/all-equipment`,
+    {},
+    signal,
+  );
+}
+
 export interface PlannedOutage {
   equipment: string;
   type: 'elevator' | 'escalator';

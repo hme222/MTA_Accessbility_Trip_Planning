@@ -48,6 +48,7 @@ import { About } from './About';
 import { Buses } from './Buses';
 import { Planned } from './Planned';
 import { Report } from './Report';
+import { TextSize } from './TextSize';
 import { TripMap } from './TripMap';
 import { useStations } from './useStations';
 import { useAutoRefresh, useAutoRefreshSetting } from './useAutoRefresh';
@@ -148,6 +149,8 @@ function Masthead() {
           </svg>
           Accessible Transit
         </span>
+        <TextSize />
+
         {/* Canonical toggle-button pattern: the name stays fixed and
             aria-pressed carries the state. Changing the label *and* the
             pressed state announces a contradiction ("Light theme, pressed"). */}
@@ -464,7 +467,7 @@ function Planner() {
         </div>
       </form>
 
-      {origin && destination ? <TripMap origin={origin} destination={destination} /> : null}
+      {origin ? <TripMap origin={origin} destination={destination} /> : null}
 
       {searchError ? <ErrorNotice message={searchError} onRetry={search} /> : null}
       {searching ? <Loading label="Finding trips…" /> : null}

@@ -14,6 +14,7 @@ import { speak, speechSupported, stop as stopSpeech } from './speech';
 import type {
   Alternative,
   Equipment,
+  StationEquipment,
   Severity,
   Station,
   TransferOption,
@@ -25,6 +26,7 @@ import {
   describeDistance,
   durationMinutes,
   fetchAlternatives,
+  fetchAllEquipment,
   fetchEquipment,
   formatOutageTime,
   formatTime,
@@ -677,7 +679,107 @@ export function TransferCard({ option }: { option: TransferOption }) {
           ))}
         </ul>
       ) : null}
+
+      <TransferEquipment stopId={option.transfer_station} stationName={option.transfer_name} />
     </li>
+  );
+}
+
+/**
+ * Elevators and escalators at a transfer point.
+ *
+ * A change of train depends on getting between platforms inside the station,
+ * and the feed describes exactly that — "mezzanine to lower mezzanine A/C/E to
+ * downtown 1/2/3 platform" is the connection a transfer rides on.
+ *
+ * The text is prose, not structure, so it is shown rather than interpreted.
+ * Parsing a route out of it to declare a specific platform-to-platform path
+ * step-free would be a guess presented as a fact, which is the one thing this
+ * project does not do. The rider reads what is there and decides.
+ */
+export function TransferEquipment({
+  stopId,
+  stationName,
+}: {
+  stopId: string;
+  stationName: string;
+}) {
+  const [items, setItems] = useState<StationEquipment[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open || loaded) return;
+    const controller = new AbortController();
+    fetchAllEquipment(stopId, controller.signal)
+      .then(setItems)
+      .catch(() => setItems([]))
+      .finally(() => setLoaded(true));
+    return () => controller.abort();
+  }, [open, loaded, stopId]);
+
+  const broken = items.filter((i) => !i.working);
+  const elevators = items.filter((i) => i.type === 'elevator');
+
+  return (
+    <details
+      className="transfer-equipment"
+      onToggle={(event) => setOpen((event.target as HTMLDetailsElement).open)}
+    >
+      <summary>
+        <span aria-hidden="true">▸</span>
+        Elevators &amp; escalators at {stationName}
+        {loaded ? (
+          <span className="equipment-count">
+            {elevators.length} elevator{elevators.length === 1 ? '' : 's'}
+            {broken.length ? `, ${broken.length} out of service` : ', all working'}
+          </span>
+        ) : null}
+      </summary>
+
+      <div className="transfer-equipment-body">
+        {!loaded ? (
+          <p className="eq-meta">Loading…</p>
+        ) : items.length === 0 ? (
+          <p className="eq-meta">No elevator or escalator data published for this station.</p>
+        ) : (
+          <>
+            <ul className="equipment-list">
+              {items.map((item) => (
+                <li
+                  key={item.equipment}
+                  className={item.working ? 'eq eq-ok' : 'eq eq-blocking'}
+                >
+                  <span className="eq-top">
+                    <strong>
+                      {item.type === 'elevator' ? 'Elevator' : 'Escalator'} {item.equipment}
+                    </strong>
+                    <span className="eq-tag">
+                      {item.working ? 'WORKING' : 'OUT OF SERVICE'}
+                    </span>
+                  </span>
+                  {item.serving ? <span className="eq-serving">{item.serving}</span> : null}
+                  {!item.working ? (
+                    <span className="eq-meta">
+                      {item.reason ? <>{item.reason}. </> : null}
+                      {item.estimated_return ? (
+                        <>Expected back <strong>{formatOutageTime(item.estimated_return)}</strong>.</>
+                      ) : (
+                        <>No return time given.</>
+                      )}
+                    </span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+            <p className="eq-why">
+              The MTA describes what each unit connects, but not which platform-to-platform
+              route is step-free. Read the descriptions against the change you need to make.
+            </p>
+          </>
+        )}
+      </div>
+    </details>
   );
 }
 

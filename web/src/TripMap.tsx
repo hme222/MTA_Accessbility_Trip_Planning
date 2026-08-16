@@ -46,20 +46,22 @@ function pin(station: Station, role: string): L.DivIcon {
   });
 }
 
-export function TripMap({ origin, destination }: { origin: Station; destination: Station }) {
+export function TripMap({ origin, destination }: { origin: Station; destination?: Station }) {
   const [open, setOpen] = useState(false);
   const nodeRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const regionId = useId();
 
-  const summary =
-    `Map showing ${origin.stop_name}, which is ${accessSummary(origin).toLowerCase()}, ` +
-    `and ${destination.stop_name}, which is ${accessSummary(destination).toLowerCase()}. ` +
-    `The same information is listed in text below the map.`;
+  const summary = destination
+    ? `Map showing ${origin.stop_name}, which is ${accessSummary(origin).toLowerCase()}, ` +
+      `and ${destination.stop_name}, which is ${accessSummary(destination).toLowerCase()}. ` +
+      `The same information is listed in text below the map.`
+    : `Map showing ${origin.stop_name}, which is ${accessSummary(origin).toLowerCase()}. ` +
+      `Choose a destination to see both. The same information is listed in text below the map.`;
 
   useEffect(() => {
     if (!open || !nodeRef.current || mapRef.current) return;
-    if (origin.lat == null || destination.lat == null) return;
+    if (origin.lat == null) return;
 
     const map = L.map(nodeRef.current, {
       // No keyboard handlers: the map must not become a tab stop that traps
@@ -76,13 +78,18 @@ export function TripMap({ origin, destination }: { origin: Station; destination:
     }).addTo(map);
 
     const a = L.latLng(origin.lat, origin.lon!);
-    const b = L.latLng(destination.lat, destination.lon!);
-
     L.marker(a, { icon: pin(origin, 'From'), keyboard: false }).addTo(map);
-    L.marker(b, { icon: pin(destination, 'To'), keyboard: false }).addTo(map);
-    L.polyline([a, b], { color: '#0039A6', weight: 4, opacity: 0.75, dashArray: '6 6' }).addTo(map);
 
-    map.fitBounds(L.latLngBounds([a, b]).pad(0.35));
+    if (destination && destination.lat != null) {
+      const b = L.latLng(destination.lat, destination.lon!);
+      L.marker(b, { icon: pin(destination, 'To'), keyboard: false }).addTo(map);
+      L.polyline([a, b], { color: '#0039A6', weight: 4, opacity: 0.75, dashArray: '6 6' }).addTo(map);
+      map.fitBounds(L.latLngBounds([a, b]).pad(0.35));
+    } else {
+      // One station chosen: centre on it at a scale that shows the streets
+      // around the entrance, which is what a rider is checking.
+      map.setView(a, 16);
+    }
 
     return () => {
       map.remove();
@@ -90,7 +97,7 @@ export function TripMap({ origin, destination }: { origin: Station; destination:
     };
   }, [open, origin, destination]);
 
-  if (origin.lat == null || destination.lat == null) return null;
+  if (origin.lat == null) return null;
 
   return (
     <div className="map-block">
@@ -118,18 +125,24 @@ export function TripMap({ origin, destination }: { origin: Station; destination:
             <span className="map-swatch" style={{ background: MARKER[accessLevel(origin)].fill }} aria-hidden="true" />
             <strong>From:</strong> {origin.stop_name} — {accessSummary(origin)}
           </li>
-          <li>
-            <span
-              className="map-swatch"
-              style={{ background: MARKER[accessLevel(destination)].fill }}
-              aria-hidden="true"
-            />
-            <strong>To:</strong> {destination.stop_name} — {accessSummary(destination)}
-          </li>
+          {destination ? (
+            <li>
+              <span
+                className="map-swatch"
+                style={{ background: MARKER[accessLevel(destination)].fill }}
+                aria-hidden="true"
+              />
+              <strong>To:</strong> {destination.stop_name} — {accessSummary(destination)}
+            </li>
+          ) : (
+            <li className="map-pending">Choose a destination to see the second station.</li>
+          )}
         </ul>
-        <p className="map-note">
-          The dashed line is direct distance between stations, not the route the train takes.
-        </p>
+        {destination ? (
+          <p className="map-note">
+            The dashed line is direct distance between stations, not the route the train takes.
+          </p>
+        ) : null}
       </div>
     </div>
   );

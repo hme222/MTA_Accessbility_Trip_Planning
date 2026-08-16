@@ -208,6 +208,34 @@ def alternatives(
     )
 
 
+class StationEquipment(BaseModel):
+    equipment: str
+    type: str
+    serving: str = ""
+    ada: bool
+    redundant: bool
+    working: bool
+    reason: str = ""
+    estimated_return: str = ""
+
+
+@app.get("/stations/{stop_id}/all-equipment", response_model=List[StationEquipment])
+def all_station_equipment(stop_id: str):
+    """Every elevator and escalator at a station, working or not.
+
+    The question a transfer raises is not "why is this closed" but "what is
+    here and does it work". The feed's `serving` text describes in-station
+    connections directly -- "mezzanine to lower mezzanine A/C/E to downtown
+    1/2/3 platform" is the path a change of train depends on.
+
+    That text is prose, not structure. It is reported as-is rather than parsed
+    into a claim that a particular platform-to-platform route is step-free.
+    """
+    _require_feed()
+    _station_or_404(stop_id)
+    return cache.all_equipment_at(stop_id)
+
+
 class Equipment(BaseModel):
     equipment: str
     type: str

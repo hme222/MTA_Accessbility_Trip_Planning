@@ -349,6 +349,47 @@ class FeedCache:
             "outages": items,
         }
 
+    def all_equipment_at(self, stop_id):
+        """Every elevator and escalator at a station, working or not.
+
+        `equipment_at` answers "why is this closed"; this answers "what is here
+        and does it work", which is the question a transfer raises. The feed's
+        `serving` text describes in-station connections directly -- "mezzanine
+        to lower mezzanine A/C/E to downtown 1/2/3 platform" is exactly the path
+        a change of train depends on.
+
+        It is free text, not structure, so this reports it and stops there. No
+        attempt is made to parse a route out of prose and claim a specific
+        platform-to-platform path is step-free; the rider reads it and decides.
+        """
+        equipment = self._equipment_db()
+        out = []
+
+        for eq_id, entry in equipment.items():
+            eq = entry["details"]
+            if stop_id not in ga.split_gtfs_ids(eq.get("elevatorsgtfsstopid")):
+                continue
+
+            working = entry["status"] != "OUT_OF_SERVICE"
+            detail = entry.get("active_outage_details") or {}
+            out.append(
+                {
+                    "equipment": eq_id,
+                    "type": "elevator" if eq.get("equipmenttype") == "EL" else "escalator",
+                    "serving": eq.get("serving", ""),
+                    "ada": eq.get("ADA") == "Y",
+                    "redundant": bool(eq.get("redundant")),
+                    "working": working,
+                    "reason": "" if working else detail.get("reason", ""),
+                    "estimated_return": "" if working else detail.get("estimatedreturntoservice", ""),
+                }
+            )
+
+        # Broken first, then elevators before escalators: an out-of-service
+        # elevator is the thing most likely to end a journey.
+        out.sort(key=lambda e: (e["working"], e["type"] != "elevator", e["equipment"]))
+        return out
+
     def equipment_at(self, stop_id):
         """Outages affecting one station, newest-blocking first.
 
