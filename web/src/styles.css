@@ -1009,3 +1009,7 @@ footer div { width: min(100% - 2rem, 940px); margin-inline: auto; }
 @media (max-width: 34rem) {
   .about-stack > div { grid-template-columns: 1fr; }
 }
+
+/* Lines available where the second leg boards. */
+.leg-lines { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.3rem; }
+.leg-lines-label { font-size: 0.75rem; color: var(--text-soft); }

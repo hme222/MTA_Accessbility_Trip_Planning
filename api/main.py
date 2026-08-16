@@ -320,9 +320,12 @@ class TransferOption(BaseModel):
     arrive: str
     total_minutes: int
     wait_minutes: int
+    arrive_station: str
+    arrive_name: str
     transfer_station: str
     transfer_name: str
-    cross_complex: bool
+    walk_between: bool
+    transfer_routes: List[str] = []
     leg_1: TransferLeg
     leg_2: TransferLeg
     severity: str
@@ -381,9 +384,14 @@ def plan_transfers(
                     arrive=row["arrive"],
                     total_minutes=max(0, int(total)),
                     wait_minutes=int(row["wait_seconds"]) // 60,
+                    arrive_station=row["arrive_station"],
+                    arrive_name=row["arrive_name"],
                     transfer_station=row["transfer_station"],
                     transfer_name=row["transfer_name"],
-                    cross_complex=bool(row["cross_complex"]),
+                    walk_between=bool(row["walk_between"]),
+                    # Lines actually available where leg two boards -- proof on
+                    # the face of the result that the change is possible.
+                    transfer_routes=cache.routes_by_station().get(row["transfer_station"], []),
                     leg_1=TransferLeg(
                         route=row["route_1"],
                         headsign=row["headsign_1"],

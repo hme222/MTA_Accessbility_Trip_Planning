@@ -593,7 +593,9 @@ export function TripCard({ trip, destination }: { trip: TripOption; destination:
 export function TransferCard({ option }: { option: TransferOption }) {
   const spoken = [
     `${option.leg_1.route} train toward ${option.leg_1.headsign}, departing ${spokenTime(option.depart)}`,
-    `change at ${option.transfer_name}, waiting ${option.wait_minutes} minute${option.wait_minutes === 1 ? '' : 's'}`,
+    option.walk_between
+      ? `arrive ${option.arrive_name}, then walk to ${option.transfer_name}, waiting ${option.wait_minutes} minute${option.wait_minutes === 1 ? '' : 's'}`
+      : `change at ${option.transfer_name}, waiting ${option.wait_minutes} minute${option.wait_minutes === 1 ? '' : 's'}`,
     `then the ${option.leg_2.route} train toward ${option.leg_2.headsign}, arriving ${spokenTime(option.arrive)}`,
     `${option.total_minutes} minutes total`,
     severitySpoken[option.severity],
@@ -615,28 +617,53 @@ export function TransferCard({ option }: { option: TransferOption }) {
         </span>
       </div>
 
-      {/* The two legs, with the change between them given its own row. */}
+      {/* Each leg is one line end to end; the change row names the station
+          where leg two boards and the lines available there, so the itinerary
+          is verifiable on its face rather than taken on trust. */}
       <ol className="legs" aria-hidden="true">
         <li>
           <RouteBullets routes={[option.leg_1.route]} />
           <span className="leg-text">
             to {option.leg_1.headsign}
-            <span className="leg-time"> · arrives {formatTime(option.leg_1.arrive)}</span>
+            <span className="leg-time">
+              {' · '}arrive {option.arrive_name} at {formatTime(option.leg_1.arrive)}
+            </span>
           </span>
         </li>
+
         <li className="leg-change">
           <span className="leg-change-icon">⇄</span>
           <span className="leg-text">
-            Change at <strong>{option.transfer_name}</strong>
-            <span className="leg-time"> · {option.wait_minutes} min wait</span>
-            {option.cross_complex ? <span className="leg-walk"> · involves a walk</span> : null}
+            {option.walk_between ? (
+              <>
+                Walk from <strong>{option.arrive_name}</strong> to{' '}
+                <strong>{option.transfer_name}</strong>
+              </>
+            ) : (
+              <>
+                Change at <strong>{option.transfer_name}</strong>
+              </>
+            )}
+            <span className="leg-time">
+              {' · '}
+              {option.wait_minutes} min wait
+            </span>
+            {option.transfer_routes.length ? (
+              <span className="leg-lines">
+                <span className="leg-lines-label">Lines here:</span>
+                <RouteBullets routes={option.transfer_routes} />
+              </span>
+            ) : null}
           </span>
         </li>
+
         <li>
           <RouteBullets routes={[option.leg_2.route]} />
           <span className="leg-text">
             to {option.leg_2.headsign}
-            <span className="leg-time"> · departs {formatTime(option.leg_2.depart)}</span>
+            <span className="leg-time">
+              {' · '}departs {formatTime(option.leg_2.depart)}
+            </span>
           </span>
         </li>
       </ol>

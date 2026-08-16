@@ -249,10 +249,16 @@ export interface TransferOption {
   arrive: string;
   total_minutes: number;
   wait_minutes: number;
+  /** Where leg one ends. */
+  arrive_station: string;
+  arrive_name: string;
+  /** Where leg two boards — often a different GTFS parent of the same station. */
   transfer_station: string;
   transfer_name: string;
-  /** True only when the change means walking to a differently-named station. */
-  cross_complex: boolean;
+  /** The two are named differently, so the change involves a walk. */
+  walk_between: boolean;
+  /** Lines serving the boarding stop, so the change is visibly possible. */
+  transfer_routes: string[];
   leg_1: TransferLeg;
   leg_2: TransferLeg;
   severity: Severity;

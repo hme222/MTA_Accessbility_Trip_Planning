@@ -727,17 +727,20 @@ def _describe_transfer(
     if not return_ok:
         notes.append("return trip from %s is not accessible" % names.get(destination, destination))
 
-    # A different GTFS parent with the same name is the same station to a
-    # rider -- Times Sq has five. Only a genuine change of station counts.
+    # Every cross-station row in transfers.txt is an in-system connection
+    # within one complex, so this is never "a different station" -- it is a
+    # walk between platform groups that GTFS happens to name differently. The
+    # A arrives at "14 St" and the L boards at "8 Av"; same building.
     from_name = names.get(arrival.station_id, arrival.station_id)
     to_name = names.get(transfer_station, transfer_station)
-    cross_complex = transfer_station != arrival.station_id and from_name != to_name
+    walk_between = transfer_station != arrival.station_id
 
-    if cross_complex and ok["transfer_in"] and ok["transfer_out"]:
-        # Honest about the gap: both platforms work, the passageway is unknown.
+    if walk_between and from_name != to_name and ok["transfer_in"] and ok["transfer_out"]:
+        # Both platforms work; whether the passageway between them is step-free
+        # is simply not in the feed. Say so rather than imply either answer.
         notes.append(
-            "the walk from %s to %s is not described in the feed — verify it before relying on it"
-            % (from_name, to_name)
+            "the connection from %s to %s is inside the station, but the feed does not say "
+            "whether that passageway is step-free" % (from_name, to_name)
         )
 
     if all(ok.values()) and return_ok:
@@ -753,10 +756,12 @@ def _describe_transfer(
         "route_1": route_of.get(arrival.trip_id, ""),
         "headsign_1": headsign_of.get(arrival.trip_id, ""),
         "leg1_arrive": arrival.arrival_time,
+        "arrive_station": arrival.station_id,
+        "arrive_name": from_name,
         "transfer_station": transfer_station,
-        "transfer_name": names.get(transfer_station, transfer_station),
+        "transfer_name": to_name,
         "wait_seconds": int(wait),
-        "cross_complex": cross_complex,
+        "walk_between": bool(walk_between and from_name != to_name),
         "route_2": route_of.get(departure.trip_id, ""),
         "headsign_2": headsign_of.get(departure.trip_id, ""),
         "leg2_depart": departure.departure_time,
