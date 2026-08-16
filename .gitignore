@@ -10,6 +10,15 @@ gtfs_accessible/
 # Cached API responses
 *.json
 !package.json
+!package-lock.json
+!mobile/app.json
+!mobile/tsconfig.json
+
+# Node / Expo
+node_modules/
+.expo/
+dist/
+*.tsbuildinfo
 
 # Python
 __pycache__/

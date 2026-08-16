@@ -31,6 +31,32 @@ from Requests_MTA import rebuild_elevator_status
 
 STATIONS_URL = "https://data.ny.gov/resource/39hk-dx4f.json"
 
+
+def _read_from_disk(gtfs_dir, name, **kwargs):
+    kwargs.setdefault("dtype", str)
+    return pd.read_csv(os.path.join(gtfs_dir, name), **kwargs)
+
+
+# Every feed file is read through this seam so a long-running caller can serve
+# the same tables from memory. stop_times.txt alone is 133 MB and 2.3M rows --
+# re-parsing it per request is fine for a one-shot build and far too slow for an
+# API. Left as plain disk reads by default; see api/feed.py for the cached one.
+_reader = _read_from_disk
+
+
+def set_reader(reader):
+    """Substitute the feed-file reader. `reader(gtfs_dir, name, **kwargs)`.
+
+    Pass None to restore plain disk reads.
+    """
+    global _reader
+    _reader = reader or _read_from_disk
+
+
+def read_table(gtfs_dir, name, **kwargs):
+    """Read a feed file through the active reader."""
+    return _reader(gtfs_dir, name, **kwargs)
+
 # GTFS stops.wheelchair_boarding
 WB_INHERIT = "0"          # child stops only: defer to parent station
 WB_ACCESSIBLE = "1"
@@ -69,7 +95,7 @@ def split_gtfs_ids(raw):
 
 
 def outage_impact(equipment_db):
-    """Find stations whose accessible path is currently broken.
+    """Find stations whose accessible route is currently broken.
 
     Only elevators matter -- an escalator is not a step-free path, so its outage
     is recorded but never downgrades a station. An elevator flagged `redundant`
@@ -166,7 +192,7 @@ def resolve_accessibility(baseline, impact, upcoming=None):
                 sorted(hit["blocking"])
             )
         elif hit["degraded"]:
-            reason = "redundant elevator(s) down, accessible path intact: " + ", ".join(
+            reason = "redundant elevator(s) down, accessible route intact: " + ", ".join(
                 sorted(hit["degraded"])
             )
         elif mta_status == MTA_PARTIAL:
@@ -228,7 +254,7 @@ def augment_stops(stops, resolved):
 
 def accessible_stations(gtfs_dir, direction=None):
     """Return parent station IDs usable in `direction` ('N', 'S', or None=either)."""
-    stops = pd.read_csv(os.path.join(gtfs_dir, "stops.txt"), dtype=str)
+    stops = read_table(gtfs_dir, "stops.txt")
     if direction is None:
         parents = stops[stops["location_type"] == "1"]
         return set(parents.loc[parents["wheelchair_boarding"] == WB_ACCESSIBLE, "stop_id"])
@@ -241,7 +267,7 @@ def trips_serving(gtfs_dir, station_ids, require_step_free=False):
     """Return trips calling at every station in `station_ids`, with advisories.
 
     Accessibility annotates but never excludes: a trip through a platform that
-    is not step-free is still returned, carrying `platform_step_free` and
+    is not accessible is still returned, carrying `platform_step_free` and
     `return_step_free` flags so the caller can warn rather than hide it. Riders
     have their own workarounds -- a companion, a transfer, a bus leg -- and the
     feed is not in a position to decide the trip is impossible.
@@ -249,15 +275,15 @@ def trips_serving(gtfs_dir, station_ids, require_step_free=False):
     `require_step_free=True` opts in to hard filtering, for callers that
     genuinely need a guaranteed-accessible subset.
     """
-    stops = pd.read_csv(os.path.join(gtfs_dir, "stops.txt"), dtype=str)
+    stops = read_table(gtfs_dir, "stops.txt")
     children = stops[stops["parent_station"].isin(station_ids)]
 
     parent_of = dict(zip(children["stop_id"], children["parent_station"]))
     step_free = dict(zip(children["stop_id"], children["wheelchair_boarding"]))
 
-    stop_times = pd.read_csv(
-        os.path.join(gtfs_dir, "stop_times.txt"),
-        dtype=str,
+    stop_times = read_table(
+        gtfs_dir,
+        "stop_times.txt",
         usecols=["trip_id", "stop_id", "departure_time", "stop_sequence"],
     )
     hits = stop_times[stop_times["stop_id"].isin(parent_of)].copy()
@@ -282,7 +308,7 @@ def trips_serving(gtfs_dir, station_ids, require_step_free=False):
         hits = hits[hits["trip_id"].isin(per_trip[per_trip == len(set(station_ids))].index)]
 
     hits["stop_sequence"] = hits["stop_sequence"].astype(int)
-    trips = pd.read_csv(os.path.join(gtfs_dir, "trips.txt"), dtype=str)
+    trips = read_table(gtfs_dir, "trips.txt")
     return hits.merge(trips, on="trip_id").sort_values(["trip_id", "stop_sequence"])
 
 
@@ -299,13 +325,13 @@ def active_services(gtfs_dir, date):
     services = set()
     calendar_path = os.path.join(gtfs_dir, "calendar.txt")
     if os.path.exists(calendar_path):
-        cal = pd.read_csv(calendar_path, dtype=str)
+        cal = read_table(gtfs_dir, "calendar.txt")
         in_range = (cal["start_date"] <= date) & (cal["end_date"] >= date)
         services = set(cal.loc[in_range & (cal[weekday] == "1"), "service_id"])
 
     exceptions_path = os.path.join(gtfs_dir, "calendar_dates.txt")
     if os.path.exists(exceptions_path):
-        exc = pd.read_csv(exceptions_path, dtype=str)
+        exc = read_table(gtfs_dir, "calendar_dates.txt")
         today = exc[exc["date"] == date]
         services |= set(today.loc[today["exception_type"] == "1", "service_id"])
         services -= set(today.loc[today["exception_type"] == "2", "service_id"])
@@ -341,7 +367,7 @@ def plan_trip(gtfs_dir, origin, destination, date=None, after=None, limit=None):
     common = board.index.intersection(alight.index)
     forward = [t for t in common if board.loc[t, "stop_sequence"] < alight.loc[t, "stop_sequence"]]
 
-    stops = pd.read_csv(os.path.join(gtfs_dir, "stops.txt"), dtype=str)
+    stops = read_table(gtfs_dir, "stops.txt")
     names = dict(zip(stops["stop_id"], stops["stop_name"]))
 
     rows = []
@@ -350,12 +376,12 @@ def plan_trip(gtfs_dir, origin, destination, date=None, after=None, limit=None):
         notes = []
 
         if b["platform_step_free"] != "1":
-            notes.append("no step-free boarding at %s" % names.get(origin, origin))
+            notes.append("no accessible boarding at %s" % names.get(origin, origin))
         if a["platform_step_free"] != "1":
-            notes.append("no step-free exit at %s" % names.get(destination, destination))
+            notes.append("no accessible exit at %s" % names.get(destination, destination))
         if a["return_step_free"] != "1":
             notes.append(
-                "return trip from %s is not step-free" % names.get(destination, destination)
+                "return trip from %s is not accessible" % names.get(destination, destination)
             )
 
         if not notes:
@@ -394,7 +420,7 @@ def platform_return_risks(stops, resolved):
     'S' -- so the return leg for any stop is that station's opposite platform.
     Two hazards are distinguished:
 
-      one_way_trap        the opposite platform has no step-free access at all
+      one_way_trap        the opposite platform has no accessible route at all
       return_outage_soon  the opposite platform works now but its ADA elevator
                           has a scheduled outage
     """
@@ -418,7 +444,7 @@ def platform_return_risks(stops, resolved):
                 "station_id": station,
                 "stop_name": name_of[stop_id],
                 "risk": "one_way_trap",
-                "detail": "reachable %sbound; no step-free %sbound return"
+                "detail": "reachable %sbound; no accessible %sbound return"
                 % (arrive_dir, return_dir),
             }
             continue
@@ -445,9 +471,9 @@ def trip_return_risks(gtfs_dir, stops, resolved):
     """Annotate every trip with the return hazards along its route."""
     risks = platform_return_risks(stops, resolved)
 
-    stop_times = pd.read_csv(
-        os.path.join(gtfs_dir, "stop_times.txt"),
-        dtype=str,
+    stop_times = read_table(
+        gtfs_dir,
+        "stop_times.txt",
         usecols=["trip_id", "stop_id", "arrival_time", "stop_sequence"],
     )
     hits = stop_times[stop_times["stop_id"].isin(risks)].copy()
@@ -459,7 +485,7 @@ def trip_return_risks(gtfs_dir, stops, resolved):
     for field in ("station_id", "stop_name", "risk", "detail"):
         hits[field] = hits["stop_id"].map(lambda s: risks[s][field])
 
-    trips = pd.read_csv(os.path.join(gtfs_dir, "trips.txt"), dtype=str)
+    trips = read_table(gtfs_dir, "trips.txt")
     detail = hits.merge(trips[["trip_id", "route_id", "direction_id"]], on="trip_id")
     detail["stop_sequence"] = detail["stop_sequence"].astype(int)
     return detail.sort_values(["trip_id", "stop_sequence"])

@@ -1,8 +1,15 @@
 # MTA_Accessbility_Trip_Planning
 
-`gtfs_accessibility.py` builds an augmented copy of the MTA subway static feed with
-station accessibility resolved down to direction of travel, reflecting live
-elevator outages.
+Subway accessibility resolved down to the direction of travel, reflecting live
+elevator outages — so a rider is told not just whether they can get somewhere,
+but whether they can get back.
+
+| Piece | What it is |
+|---|---|
+| `gtfs_accessibility.py` | Builds an augmented copy of the MTA static feed |
+| `api/` | FastAPI service over the built feed |
+| `mobile/` | React Native (Expo) app |
+| `docs/` | Project page, served by GitHub Pages |
 
 ```
 python3 gtfs_accessibility.py     # -> ~/Downloads/gtfs_accessible.zip
@@ -175,6 +182,82 @@ with caveats":
 ga.accessible_stations(feed, direction="N")   # stations usable northbound
 ga.active_services(feed, "20260817")          # service_ids running that date
 ```
+
+## JSON API
+
+```
+pip install -r api/requirements.txt
+uvicorn api.main:app --host 0.0.0.0 --port 8000
+```
+
+Point it at a feed with `GTFS_ACCESSIBLE_DIR` (default `~/Downloads/gtfs_accessible`).
+Interactive docs at `/docs`.
+
+| Endpoint | Returns |
+|---|---|
+| `GET /health` | Feed directory, load state, station count |
+| `GET /stations` | All 496 parent stations. `?q=` name search, `?direction=N\|S` |
+| `GET /stations/{stop_id}` | One station |
+| `GET /plan` | `?origin=&destination=` plus optional `date`, `after`, `limit` |
+| `GET /outages` | Live equipment outages. `?blocking_only=true` |
+
+`/plan` defaults `date` and `after` to now in `America/New_York`, since a phone
+asking for a trip means *now* rather than *every service pattern in the feed*.
+
+### Why the reader seam exists
+
+`stop_times.txt` is 133 MB and 2.3M rows. Re-parsing it per request costs ~2s,
+which is fine for a one-shot build and far too slow for an API. Every feed read
+in `gtfs_accessibility` therefore goes through `read_table()`, and `api/feed.py`
+installs a cache behind it:
+
+```python
+FeedCache("~/Downloads/gtfs_accessible").install()
+```
+
+Nothing else changes — `plan_trip`, `trips_serving`, and `accessible_stations`
+keep their logic and simply read from memory. Warm-up is ~1.5s and a trip query
+then costs ~0.3s. Left as plain disk reads by default, so running the build
+script directly is unaffected.
+
+## Web app
+
+```
+cd web
+npm install
+npm run dev           # http://localhost:5173
+```
+
+Vite proxies `/api` to `127.0.0.1:8000`, so the browser only makes same-origin
+requests and CORS never enters into it. Override the target with `API_TARGET` in
+development, or `VITE_API_URL` for a build pointed at a deployed backend.
+
+Two panels: plan a trip, and check elevators. The design follows the same rule as
+the data layer — **it warns, it never blocks**. Every station appears in the
+picker with its status labeled, including stations with no step-free access at
+all, and "step-free trips only" is opt-in with its consequence spelled out.
+
+Accessibility is a requirement here, not a feature:
+
+- The station picker is a full ARIA combobox — arrow keys, Home/End, Enter,
+  Escape, and `aria-activedescendant`, not a div that listens for clicks.
+- Route bullets and severity chips are `aria-hidden`; each row carries one
+  written label describing what it shows visually.
+- Color never carries meaning alone — every severity has a glyph and a word, and
+  a left rule so it survives grayscale.
+- After a search, focus moves to the results heading, so the answer is where the
+  user lands rather than something to hunt for.
+- Skip link, real heading hierarchy, `role="status"` for counts, `role="alert"`
+  for failures.
+- Targets are at least 44px; `prefers-reduced-motion` is respected.
+
+See `docs/accessibility-review.md` for the open findings.
+
+## Project page
+
+`docs/index.html` is a self-contained page describing the project and its scope.
+It is served by GitHub Pages from **Settings → Pages → Deploy from branch →
+`main` → `/docs`**.
 
 ## Caveat: this is a snapshot
 

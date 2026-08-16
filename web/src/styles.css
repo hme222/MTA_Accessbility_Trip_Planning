@@ -1,0 +1,560 @@
+/* ---------------------------------------------------------------------
+   Accessible Transit — web app
+
+   Same visual language as the project page: the NYC Transit signage system.
+   Helvetica (the system's actual typeface since Unimark, 1970), black panels,
+   and the line bullets. Semantic color is drawn from the subway's own line
+   palette and is always paired with a glyph and a word, never used alone.
+   --------------------------------------------------------------------- */
+
+:root {
+  color-scheme: light;
+
+  --panel:      #0B0D10;   /* signage panels stay black in both themes */
+  --panel-text: #FFFFFF;
+  --panel-soft: #A8B0BA;
+
+  --paper:      #F7F8F9;
+  --surface:    #FFFFFF;
+  --surface-2:  #EEF0F3;
+  --rule:       #D5D9DE;
+  --rule-firm:  #9BA3AD;
+  --text:       #0B0D10;
+  --text-soft:  #545C67;
+
+  --accent:     #0039A6;   /* A / C / E blue */
+  --accent-ink: #FFFFFF;
+  --accent-bg:  #E7EDF9;
+
+  --go:      #00722F;
+  --go-bg:   #E4F3E9;
+  --warn:    #7A5300;
+  --warn-bg: #FDF3D9;
+  --stop:    #B4271F;
+  --stop-bg: #FBE7E5;
+
+  --sans: "Helvetica Neue", Helvetica, Arial, "Liberation Sans", sans-serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+  --radius: 4px;
+
+  /* Touch targets are a physical size, not a typographic one, so this stays in
+     px — it should not shrink because someone reduced their text size. Applied
+     as min-height, so a target still grows when its label does. */
+  --tap: 44px;
+}
+
+/*
+ * Text sizing.
+ *
+ * `font-size: 100%` on the root means the base size is whatever the reader set
+ * in their browser, rather than a number chosen here. Setting `16px` instead —
+ * the common default — silently overrides that preference, which is precisely
+ * the setting a low-vision reader is most likely to have changed.
+ *
+ * Everything below sizes in rem, so it all scales from that one base together:
+ * browser zoom, OS text size, and the browser's own font-size setting all work.
+ */
+html {
+  font-size: 100%;
+  /* Never disable pinch zoom (WCAG 1.4.4). */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --paper:     #0B0D10;
+    --surface:   #14181D;
+    --surface-2: #1C2128;
+    --rule:      #2A3038;
+    --rule-firm: #49525E;
+    --text:      #EDEFF2;
+    --text-soft: #A2ABB6;
+    --accent:     #7FA9FF;
+    --accent-ink: #0B0D10;
+    --accent-bg:  #16233A;
+    --go:      #63D392;
+    --go-bg:   #10281B;
+    --warn:    #F2C25C;
+    --warn-bg: #2C2410;
+    --stop:    #FF9187;
+    --stop-bg: #301513;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --paper:     #0B0D10;
+  --surface:   #14181D;
+  --surface-2: #1C2128;
+  --rule:      #2A3038;
+  --rule-firm: #49525E;
+  --text:      #EDEFF2;
+  --text-soft: #A2ABB6;
+  --accent:     #7FA9FF;
+  --accent-ink: #0B0D10;
+  --accent-bg:  #16233A;
+  --go:      #63D392;
+  --go-bg:   #10281B;
+  --warn:    #F2C25C;
+  --warn-bg: #2C2410;
+  --stop:    #FF9187;
+  --stop-bg: #301513;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 1rem;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * Text-spacing tolerance (WCAG 1.4.12): a reader may override line height to
+ * 1.5x, paragraph spacing to 2x, and letter/word spacing well beyond the
+ * defaults. Nothing may clip or overlap when they do, which rules out fixed
+ * heights on anything containing text — every constraint below is min-height.
+ */
+h1, h2, h3, p, li, label, button, input {
+  overflow-wrap: break-word;
+}
+
+h1, h2, h3 {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: -0.022em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+p { margin: 0; }
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Visible only to screen readers, but still focusable. */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.skip-link:focus {
+  position: fixed;
+  top: 0.5rem; left: 0.5rem;
+  z-index: 100;
+  width: auto; height: auto;
+  clip-path: none;
+  padding: 0.6rem 1rem;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
+/* -- shell ----------------------------------------------------------- */
+
+.app { min-height: 100dvh; display: flex; flex-direction: column; }
+
+.masthead {
+  background: var(--panel);
+  color: var(--panel-text);
+  border-bottom: 3px solid var(--panel-text);
+}
+.masthead-inner {
+  width: min(100% - 2rem, 940px);
+  margin-inline: auto;
+  min-height: 3.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.wordmark {
+  display: flex; align-items: center; gap: 0.6rem;
+  font-weight: 700; letter-spacing: -0.02em; font-size: 1.0625rem;
+  margin-right: auto;
+}
+.theme-btn {
+  font: inherit; font-size: 0.875rem;
+  color: var(--panel-text);
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.45);
+  border-radius: 3px;
+  padding: 0.35rem 0.7rem;
+  min-height: 2.25rem;
+  cursor: pointer;
+}
+.theme-btn:hover { background: rgba(255,255,255,0.12); }
+.theme-btn:focus-visible { outline-color: var(--panel-text); }
+
+main {
+  flex: 1;
+  width: min(100% - 2rem, 940px);
+  margin-inline: auto;
+  padding-block: 1.5rem 3rem;
+}
+
+/* -- tabs ------------------------------------------------------------ */
+
+.tabs { display: flex; gap: 0; border-bottom: 2px solid var(--rule); margin-bottom: 1.75rem; }
+.tab {
+  font: inherit;
+  font-weight: 500;
+  color: var(--text-soft);
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  padding: 0.75rem 1.1rem;
+  min-height: var(--tap);
+  cursor: pointer;
+}
+.tab:hover { color: var(--text); }
+/* Selection reads through weight and a rule, not color alone. */
+.tab[aria-selected='true'] {
+  color: var(--accent);
+  font-weight: 700;
+  border-bottom-color: var(--accent);
+}
+
+/* -- forms ----------------------------------------------------------- */
+
+.planner { display: grid; gap: 1.25rem; }
+
+.field { display: grid; gap: 0.4rem; position: relative; }
+.field > label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  color: var(--text-soft);
+}
+.field input {
+  font: inherit;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0.6rem 0.8rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--rule-firm);
+  border-radius: var(--radius);
+}
+.field input::placeholder { color: var(--text-soft); opacity: 1; }
+
+/* -- combobox listbox ------------------------------------------------ */
+
+.listbox {
+  position: absolute;
+  top: 100%; left: 0; right: 0;
+  z-index: 20;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: min(60vh, 24rem);
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--rule-firm);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.18);
+}
+.option {
+  display: grid;
+  gap: 0.2rem;
+  align-content: center;
+  /* Below the 44px floor these rows are a real miss target for anyone with a
+     tremor or limited fine motor control. */
+  min-height: var(--tap);
+  padding: 0.5rem 0.8rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--rule);
+}
+.option:last-child { border-bottom: none; }
+.option[aria-selected='true'] { background: var(--accent-bg); }
+.option-name { font-weight: 600; }
+.option-meta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.no-options { padding: 0.9rem; color: var(--text-soft); font-size: 0.9375rem; }
+
+/* -- route bullets --------------------------------------------------- */
+
+.bullets { display: inline-flex; gap: 0.25rem; }
+.bullet {
+  width: 1.55em; height: 1.55em;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 0.75rem; font-weight: 700;
+  flex: none;
+}
+.bullet-lg { width: 1.9em; height: 1.9em; font-size: 1.0625rem; }
+
+/* -- access line ----------------------------------------------------- */
+
+.access { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8125rem; font-weight: 600; }
+.access-full    { color: var(--go); }
+.access-partial { color: var(--warn); }
+.access-none    { color: var(--stop); }
+
+/* -- controls -------------------------------------------------------- */
+
+.controls { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between; }
+
+.switch { display: flex; gap: 0.7rem; align-items: flex-start; cursor: pointer; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch .track {
+  flex: none;
+  width: 2.9em; height: 1.75em;
+  border-radius: 999px;
+  background: var(--rule-firm);
+  padding: 3px;
+  display: flex;
+  transition: background 120ms ease;
+}
+.switch .thumb {
+  width: 1.375em; height: 1.375em;
+  border-radius: 50%;
+  background: #FFFFFF;
+  transition: transform 120ms ease;
+}
+.switch input:checked + .track { background: var(--accent); }
+.switch input:checked + .track .thumb { transform: translateX(1.15em); }
+.switch input:focus-visible + .track { outline: 3px solid var(--accent); outline-offset: 2px; }
+.switch-text { display: grid; gap: 0.15rem; }
+.switch-label { font-weight: 600; font-size: 0.9375rem; }
+.switch-hint { font-size: 0.8125rem; color: var(--text-soft); max-width: 46ch; }
+
+.btn {
+  font: inherit; font-weight: 700;
+  min-height: var(--tap);
+  padding: 0.6rem 1.4rem;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  background: var(--accent);
+  color: var(--accent-ink);
+  cursor: pointer;
+}
+.btn:hover:not(:disabled) { filter: brightness(1.08); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-secondary {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--rule-firm);
+}
+.btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+
+/* -- results --------------------------------------------------------- */
+
+.results { margin-top: 2rem; display: grid; gap: 1rem; }
+/* The trip list is its own element so the section's grid gap is not applied
+   twice. Keeping both on `.results` made the two rules fight over spacing. */
+.trip-list { display: grid; gap: 1rem; list-style: none; margin: 0; padding: 0; }
+.results-head { display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap; }
+.results-head h2 { font-size: 1.375rem; }
+.results-count { color: var(--text-soft); font-size: 0.9375rem; }
+
+/* Freshness banner — how old the accessibility data is. */
+.freshness {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  font-size: 0.8125rem;
+  color: var(--text-soft);
+  padding: 0.5rem 0.75rem;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+}
+.freshness-stale { color: var(--warn); font-weight: 600; }
+
+/* Persistent help text on the form, so limitations are known before the
+   search rather than discovered through an empty result. */
+.form-help {
+  font-size: 0.8125rem;
+  color: var(--text-soft);
+  background: var(--surface-2);
+  border-left: 3px solid var(--rule-firm);
+  padding: 0.6rem 0.8rem;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  max-width: 68ch;
+}
+
+/* Date and time inputs sit side by side and wrap on narrow screens. */
+.when { display: flex; gap: 1rem; flex-wrap: wrap; }
+.when .field { flex: 1 1 12rem; }
+.when input { color-scheme: inherit; }
+
+.trip {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-left: 6px solid var(--rule-firm);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  display: grid;
+  gap: 0.75rem;
+}
+.trip-step_free         { border-left-color: var(--go); }
+.trip-return_warning    { border-left-color: var(--warn); }
+.trip-outbound_warning  { border-left-color: var(--stop); }
+
+.trip-top { display: flex; align-items: center; gap: 0.9rem; }
+.trip-times {
+  display: flex; align-items: baseline; gap: 0.5rem;
+  font-size: 1.125rem; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.trip-arrow { color: var(--text-soft); font-weight: 400; }
+.trip-dur { margin-left: auto; color: var(--text-soft); font-size: 0.875rem; white-space: nowrap; }
+.trip-head { color: var(--text-soft); font-size: 0.875rem; }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  align-self: start;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid;
+  font-size: 0.8125rem; font-weight: 700;
+}
+.chip-step_free        { color: var(--go);   background: var(--go-bg);   border-color: var(--go); }
+.chip-return_warning   { color: var(--warn); background: var(--warn-bg); border-color: var(--warn); }
+.chip-outbound_warning { color: var(--stop); background: var(--stop-bg); border-color: var(--stop); }
+
+.advisories { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.3rem; font-size: 0.9375rem; }
+
+/* -- notices --------------------------------------------------------- */
+
+.notice {
+  border-radius: var(--radius);
+  border: 1px solid;
+  border-left-width: 6px;
+  padding: 1rem 1.1rem;
+  display: grid;
+  gap: 0.35rem;
+}
+.notice h3 { font-size: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+.notice p { font-size: 0.9375rem; }
+.notice-warn { background: var(--warn-bg); border-color: var(--warn); }
+.notice-warn h3 { color: var(--warn); }
+.notice-stop { background: var(--stop-bg); border-color: var(--stop); }
+.notice-stop h3 { color: var(--stop); }
+.notice-plain {
+  background: var(--surface-2);
+  border-color: var(--rule);
+  border-left-color: var(--rule-firm);
+}
+
+/* -- outages --------------------------------------------------------- */
+
+.outage-head { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+.outage-list { display: grid; gap: 0.75rem; list-style: none; margin: 0; padding: 0; }
+.outage {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-left: 6px solid var(--rule-firm);
+  border-radius: var(--radius);
+  padding: 0.9rem 1.1rem;
+  display: grid;
+  gap: 0.3rem;
+}
+.outage-blocking { border-left-color: var(--stop); }
+.outage-info     { border-left-color: var(--warn); }
+.outage-top { display: flex; align-items: baseline; gap: 0.75rem; }
+.outage-where { font-weight: 700; flex: 1; }
+.outage-tag { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; }
+.outage-blocking .outage-tag { color: var(--stop); }
+.outage-info .outage-tag { color: var(--warn); }
+.outage-meta { font-size: 0.8125rem; color: var(--text-soft); font-family: var(--mono); }
+.outage-impact { font-size: 0.9375rem; font-weight: 600; }
+.outage-blocking .outage-impact { color: var(--stop); }
+.outage-info .outage-impact { color: var(--text-soft); }
+.outage-reason { font-size: 0.875rem; color: var(--text-soft); }
+
+/* -- states ---------------------------------------------------------- */
+
+.status { padding: 2.5rem 1rem; text-align: center; color: var(--text-soft); }
+.spinner {
+  width: 1.75rem; height: 1.75rem;
+  margin: 0 auto 0.75rem;
+  border: 3px solid var(--rule);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 2.4s; }
+  .switch .track, .switch .thumb { transition: none; }
+}
+
+code { font-family: var(--mono); font-size: 0.875em; }
+
+footer {
+  background: var(--panel);
+  color: var(--panel-soft);
+  font-size: 0.8125rem;
+  padding: 1.5rem 0;
+  border-top: 3px solid var(--rule-firm);
+}
+footer div { width: min(100% - 2rem, 940px); margin-inline: auto; }
+
+/* -- reflow ---------------------------------------------------------- */
+
+/*
+ * Reflow (WCAG 1.4.10): at 320 CSS px — equivalently, 400% zoom on a 1280px
+ * screen — content must not require scrolling in two directions. That width is
+ * where a low-vision reader actually spends their time, so these are not edge
+ * cases but the primary layout for them.
+ *
+ * Everything below either wraps or stacks. `min-width: 0` is the load-bearing
+ * part: a flex child defaults to `min-width: auto` and refuses to shrink below
+ * its content, which is what silently forces a horizontal scrollbar.
+ */
+.trip-top,
+.outage-top,
+.results-head,
+.outage-head,
+.masthead-inner,
+.controls {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.trip-times,
+.trip-head,
+.outage-where,
+.wordmark {
+  min-width: 0;
+}
+
+.trip-dur { margin-left: auto; }
+
+@media (max-width: 26rem) {
+  main { padding-block: 1rem 2rem; }
+
+  /* Stack the controls rather than letting the switch and buttons fight over
+     a line they cannot share. */
+  .controls { flex-direction: column; align-items: stretch; gap: 1.25rem; }
+  .btn-row { flex-direction: column; }
+  .btn { width: 100%; }
+
+  /* Once the duration cannot sit beside the times, let it start a new line
+     instead of pushing the row wider than the screen. */
+  .trip-dur { margin-left: 0; flex-basis: 100%; }
+
+  .tabs { gap: 0; }
+  .tab { padding: 0.75rem 0.8rem; flex: 1; }
+}
+
+/* Honor an explicit request for more contrast. */
+@media (prefers-contrast: more) {
+  :root {
+    --rule: var(--rule-firm);
+    --text-soft: var(--text);
+  }
+  .trip, .outage, .field input, .listbox { border-width: 2px; }
+  :focus-visible { outline-width: 4px; }
+}

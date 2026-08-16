@@ -1,0 +1,820 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Accessible Transit</title>
+<meta name="description" content="Directional subway accessibility for the NYC subway — resolving ADA accessibility down to the platform, with live elevator outages folded in.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%230039A6'/><text y='72' x='50' text-anchor='middle' font-size='64' fill='white' font-family='Helvetica,Arial'>♿</text></svg>">
+<style>
+/* ---------------------------------------------------------------------
+   Accessible Transit — project page
+
+   The visual language is the NYC Transit signage system: Helvetica, black
+   panels, white rules, and the line bullets. Helvetica is not a stylistic
+   nod here, it is the actual typeface of the system (Unimark, 1970), and it
+   ships natively, so no webfont is loaded.
+
+   Light theme reads as the printed Graphics Standards Manual; dark theme
+   reads as the signage itself.
+   --------------------------------------------------------------------- */
+
+:root {
+  color-scheme: light;
+
+  --ink:        #0B0D10;
+  --paper:      #F7F8F9;
+  --panel:      #0B0D10;   /* signage panels stay black in both themes */
+  --panel-text: #FFFFFF;
+  --surface:    #FFFFFF;
+  --rule:       #D5D9DE;
+  --rule-firm:  #9BA3AD;
+  --text:       #0B0D10;
+  --text-soft:  #545C67;
+
+  --accent:     #0039A6;   /* A / C / E blue */
+  --accent-ink: #FFFFFF;
+
+  /* Semantic colors are the system's own line colors, adjusted only where
+     text contrast demands it. Never used as decoration. */
+  --go:      #00722F;
+  --go-bg:   #E4F3E9;
+  --warn:    #7A5300;
+  --warn-bg: #FDF3D9;
+  --stop:    #B4271F;
+  --stop-bg: #FBE7E5;
+
+  --measure: 68ch;
+  --gutter: clamp(1.25rem, 5vw, 3rem);
+
+  --sans: "Helvetica Neue", Helvetica, Arial, "Liberation Sans", sans-serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper:     #0B0D10;
+    --surface:   #14181D;
+    --rule:      #2A3038;
+    --rule-firm: #49525E;
+    --text:      #EDEFF2;
+    --text-soft: #A2ABB6;
+    --accent:     #7FA9FF;
+    --accent-ink: #0B0D10;
+    --go:      #63D392;
+    --go-bg:   #10281B;
+    --warn:    #F2C25C;
+    --warn-bg: #2C2410;
+    --stop:    #FF9187;
+    --stop-bg: #301513;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper:     #0B0D10;
+  --surface:   #14181D;
+  --rule:      #2A3038;
+  --rule-firm: #49525E;
+  --text:      #EDEFF2;
+  --text-soft: #A2ABB6;
+  --accent:     #7FA9FF;
+  --accent-ink: #0B0D10;
+  --go:      #63D392;
+  --go-bg:   #10281B;
+  --warn:    #F2C25C;
+  --warn-bg: #2C2410;
+  --stop:    #FF9187;
+  --stop-bg: #301513;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+/*
+ * Base size is whatever the reader set in their browser, not a number chosen
+ * here. A hardcoded px value on the root silently overrides that preference —
+ * exactly the setting a low-vision reader is most likely to have changed.
+ * Everything else is sized in rem/em so it all scales together with zoom, OS
+ * text size, and the browser's own font-size setting.
+ */
+html {
+  font-size: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Text-spacing tolerance (WCAG 1.4.12): nothing clips when a reader overrides
+   line height, paragraph spacing, or letter and word spacing. */
+h1, h2, h3, p, li, td, th { overflow-wrap: break-word; }
+
+h1, h2, h3 {
+  /* Signage sets Helvetica tight and heavy. */
+  font-weight: 700;
+  letter-spacing: -0.022em;
+  text-wrap: balance;
+  margin: 0;
+  line-height: 1.1;
+}
+
+p { margin: 0; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.wrap {
+  width: min(100% - var(--gutter) * 2, 1080px);
+  margin-inline: auto;
+}
+
+.measure { max-width: var(--measure); }
+
+/* -- masthead ------------------------------------------------------- */
+
+/* Skip link — first thing in the tab order, visible only once focused. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  background: var(--accent);
+  color: var(--accent-ink);
+  padding: 0.7rem 1.1rem;
+  font-weight: 700;
+}
+.skip-link:focus {
+  left: 0.5rem;
+  top: 0.5rem;
+}
+
+.masthead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--panel);
+  color: var(--panel-text);
+  border-bottom: 3px solid var(--panel-text);
+}
+
+/*
+ * A sticky bar costs a fixed slice of every screen. At 400% zoom, or on a short
+ * window, that slice is most of the viewport — so it only sticks when there is
+ * height to spare.
+ */
+@media (max-height: 26rem) {
+  .masthead { position: static; }
+}
+
+.masthead .wrap {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 3.5rem;
+  flex-wrap: wrap;
+}
+
+/* Keep anchored headings clear of the sticky bar instead of scrolling them
+   underneath it, where a keyboard user lands on a target they cannot see. */
+section[id] { scroll-margin-top: 4.5rem; }
+.wordmark {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-size: 1.0625rem;
+  margin-right: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.masthead a { color: var(--panel-text); text-decoration: none; }
+.masthead a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.masthead nav {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.75rem, 2.5vw, 1.5rem);
+  font-size: 0.875rem;
+}
+.masthead nav a:focus-visible, .theme-toggle:focus-visible {
+  outline-color: var(--panel-text);
+}
+.theme-toggle {
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--panel-text);
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.45);
+  border-radius: 3px;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+}
+.theme-toggle:hover { background: rgba(255,255,255,0.12); }
+
+/* -- hero ----------------------------------------------------------- */
+
+.hero {
+  background: var(--panel);
+  color: var(--panel-text);
+  padding-block: clamp(3rem, 9vw, 6rem);
+}
+.hero h1 {
+  font-size: clamp(2.5rem, 8vw, 5rem);
+  letter-spacing: -0.035em;
+  max-width: 16ch;
+}
+.hero .lede {
+  margin-top: 1.5rem;
+  max-width: 56ch;
+  font-size: clamp(1.0625rem, 2vw, 1.25rem);
+  color: #C9CFD7;
+}
+.bullets { display: flex; gap: 0.375rem; margin-bottom: 1.75rem; }
+.bullet {
+  /* em, so the disc tracks the letter inside it when text is scaled up. */
+  width: 1.9em; height: 1.9em;
+  flex: none;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  font-weight: 700; font-size: 1.0625rem;
+  letter-spacing: 0;
+}
+
+/* -- stat band ------------------------------------------------------ */
+
+.stats {
+  border-top: 1px solid rgba(255,255,255,0.22);
+  margin-top: clamp(2.5rem, 6vw, 4rem);
+  padding-top: 2rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1.75rem 1.5rem;
+}
+.stat .num {
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.stat .cap {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: #A8B0BA;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 500;
+}
+
+/* -- sections ------------------------------------------------------- */
+
+section { padding-block: clamp(3rem, 8vw, 5.5rem); }
+section + section { border-top: 1px solid var(--rule); }
+
+.eyebrow {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+  color: var(--text-soft);
+  margin-bottom: 1rem;
+}
+h2 { font-size: clamp(1.75rem, 4.5vw, 2.5rem); }
+h3 { font-size: 1.125rem; letter-spacing: -0.01em; }
+.section-intro { margin-top: 1.25rem; color: var(--text-soft); font-size: 1.0625rem; }
+.stack { display: grid; gap: 1.25rem; }
+
+/* -- the trap diagram ----------------------------------------------- */
+
+.trap {
+  margin-top: 2.5rem;
+  background: var(--panel);
+  color: var(--panel-text);
+  border-radius: 4px;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+  overflow-x: auto;
+}
+.trap figcaption {
+  margin-top: 1.5rem;
+  font-size: 0.9375rem;
+  color: #B4BCC6;
+  max-width: 60ch;
+}
+.trap svg { display: block; width: 100%; min-width: 460px; height: auto; }
+
+/* -- pipeline (a real sequence, so it is numbered) ------------------- */
+
+.pipeline { margin-top: 2.5rem; display: grid; gap: 0; counter-reset: step; }
+.step {
+  display: grid;
+  grid-template-columns: 3rem 1fr;
+  gap: 1.25rem;
+  padding: 1.5rem 0;
+  border-top: 1px solid var(--rule);
+}
+.step:last-child { border-bottom: 1px solid var(--rule); }
+.step::before {
+  counter-increment: step;
+  content: counter(step, decimal-leading-zero);
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  color: var(--text-soft);
+  padding-top: 0.2rem;
+}
+.step h3 { margin-bottom: 0.4rem; }
+.step p { color: var(--text-soft); font-size: 0.9375rem; max-width: 62ch; }
+
+/* -- tables --------------------------------------------------------- */
+
+.table-scroll { overflow-x: auto; margin-top: 2rem; }
+table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 0.9375rem; }
+caption { text-align: left; color: var(--text-soft); font-size: 0.875rem; padding-bottom: 0.75rem; }
+th, td { text-align: left; padding: 0.75rem 1rem 0.75rem 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+thead th {
+  font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text-soft); border-bottom: 2px solid var(--rule-firm);
+}
+td code, .mono { font-family: var(--mono); font-size: 0.875em; }
+td:first-child { white-space: nowrap; }
+
+/* -- severity strips ------------------------------------------------ */
+
+.severities { margin-top: 2.5rem; display: grid; gap: 0.75rem; }
+.sev {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1rem;
+  align-items: start;
+  padding: 1.125rem 1.25rem;
+  border-radius: 3px;
+  /* The left rule carries severity in form as well as color, so the
+     distinction survives grayscale and color blindness. */
+  border-left: 6px solid;
+}
+.sev .glyph { font-size: 1.125rem; font-weight: 700; line-height: 1.4; }
+.sev .name { font-weight: 700; }
+.sev .desc { color: var(--text); opacity: 0.85; font-size: 0.9375rem; margin-top: 0.2rem; }
+.sev .name code { font-family: var(--mono); font-size: 0.8125rem; opacity: 0.75; font-weight: 400; }
+.sev-go   { background: var(--go-bg);   border-left-color: var(--go);   color: var(--go); }
+.sev-warn { background: var(--warn-bg); border-left-color: var(--warn); color: var(--warn); }
+.sev-stop { background: var(--stop-bg); border-left-color: var(--stop); color: var(--stop); }
+
+/* -- scope ---------------------------------------------------------- */
+
+.scope { margin-top: 2.5rem; display: grid; gap: 2rem; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.scope-col h3 {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding-bottom: 0.75rem; margin-bottom: 0.5rem;
+  border-bottom: 2px solid var(--rule-firm);
+}
+.tag {
+  font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.08em;
+  padding: 0.2rem 0.45rem; border-radius: 2px; font-weight: 700;
+}
+.tag-done { background: var(--go-bg); color: var(--go); }
+.tag-next { background: var(--warn-bg); color: var(--warn); }
+.tag-out  { background: var(--surface); color: var(--text-soft); border: 1px solid var(--rule-firm); }
+.scope ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
+.scope li { font-size: 0.9375rem; color: var(--text-soft); padding-left: 1.1rem; position: relative; }
+.scope li::before {
+  content: ""; position: absolute; left: 0; top: 0.62em;
+  width: 6px; height: 1px; background: var(--rule-firm);
+}
+.scope li strong { color: var(--text); font-weight: 600; }
+
+/* -- callout -------------------------------------------------------- */
+
+.callout {
+  margin-top: 2rem;
+  border-left: 4px solid var(--accent);
+  padding: 1.25rem 0 1.25rem 1.5rem;
+  background: var(--surface);
+}
+.callout p { max-width: 62ch; }
+.callout .quiet { color: var(--text-soft); font-size: 0.9375rem; margin-top: 0.6rem; }
+
+/* -- code ----------------------------------------------------------- */
+
+pre {
+  margin: 1.5rem 0 0;
+  background: var(--panel);
+  color: #E6E9ED;
+  padding: 1.25rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  line-height: 1.7;
+}
+pre .c { color: #8B95A1; }
+
+/* -- footer --------------------------------------------------------- */
+
+footer {
+  background: var(--panel);
+  color: #A8B0BA;
+  padding-block: 3rem;
+  font-size: 0.875rem;
+  border-top: 3px solid var(--rule-firm);
+}
+footer a { color: #FFFFFF; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 1rem 2rem; align-items: baseline; }
+footer p { max-width: 60ch; }
+
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<header class="masthead">
+  <div class="wrap">
+    <span class="wordmark">
+      <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+        <circle cx="12" cy="4" r="2.2"/>
+        <path d="M9.4 7.2a1.4 1.4 0 0 1 1.9.6l1.1 2.2h3.2a1.3 1.3 0 0 1 0 2.6h-4a1.4 1.4 0 0 1-1.2-.7l-.3-.6-.7 2.6a5.2 5.2 0 1 0 5.9 6.1h2.6A7.8 7.8 0 1 1 8.6 11l.2-2.6a1.4 1.4 0 0 1 .6-1.2z"/>
+      </svg>
+      Accessible Transit
+    </span>
+    <nav aria-label="Sections">
+      <a href="#problem">Problem</a>
+      <a href="#how">How it works</a>
+      <a href="#scope">Scope</a>
+      <!-- Canonical toggle-button pattern: the name stays fixed and
+           aria-pressed carries the state. Changing the label *and* the pressed
+           state announces a contradiction ("Light theme, pressed"). -->
+      <button class="theme-toggle" type="button" id="theme-toggle" aria-pressed="false">
+        Dark theme
+      </button>
+    </nav>
+  </div>
+</header>
+
+<main id="main" tabindex="-1">
+
+<section class="hero" aria-labelledby="title">
+  <div class="wrap">
+    <div class="bullets" aria-hidden="true">
+      <!-- Letter color is per-line, chosen to clear WCAG AA against the
+           agency's published hue. White fails on red, green, and orange. -->
+      <span class="bullet" style="background:#EE352E;color:#111417">1</span>
+      <span class="bullet" style="background:#00933C;color:#111417">4</span>
+      <span class="bullet" style="background:#0039A6;color:#FFFFFF">A</span>
+      <span class="bullet" style="background:#FCCC0A;color:#111417">N</span>
+      <span class="bullet" style="background:#FF6319;color:#111417">F</span>
+    </div>
+
+    <h1 id="title">Getting there is only half the trip.</h1>
+
+    <p class="lede">
+      The MTA publishes which stations are wheelchair accessible. It does not
+      publish which <em>direction</em> you can leave from. This project resolves
+      ADA accessibility down to the individual platform, folds in live elevator
+      outages, and tells a rider the thing no other planner does: whether they
+      can get back.
+    </p>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="num">140<span style="color:#787F8B">/496</span></div>
+        <div class="cap">Stations fully ADA accessible</div>
+      </div>
+      <div class="stat">
+        <div class="num">8</div>
+        <div class="cap">Platforms you can reach but not leave</div>
+      </div>
+      <div class="stat">
+        <div class="num">30%</div>
+        <div class="cap">Of all trips carry a return-trip risk</div>
+      </div>
+      <div class="stat">
+        <div class="num">24</div>
+        <div class="cap">Stations downgraded by outages right now</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="problem" aria-labelledby="problem-h">
+  <div class="wrap">
+    <p class="eyebrow">The problem</p>
+    <h2 id="problem-h">A station marked “accessible” can still strand you.</h2>
+
+    <div class="stack measure">
+      <p class="section-intro">
+        Accessibility is usually published per station — one flag, one answer.
+        But an elevator serves a platform, not a building. Eight stations in the
+        system have an accessible route in exactly one direction, which means a
+        rider can arrive on the accessible platform and then find no accessible
+        way to board the train home.
+      </p>
+      <p>
+        Those eight platforms are not an edge case. Because a trip inherits the
+        risk of every stop it calls at, they place a return-trip hazard on
+        <strong>22,937 of the system's 77,236 scheduled trips</strong>.
+      </p>
+    </div>
+
+    <figure class="trap">
+      <svg viewBox="0 0 720 250" role="img" aria-labelledby="trap-title trap-desc">
+        <title id="trap-title">49 St, showing accessible uptown platform and inaccessible downtown platform</title>
+        <desc id="trap-desc">
+          A rider travels uptown to 49 Street and arrives on the northbound
+          platform, which has an elevator. The southbound platform on the other
+          side of the station has no elevator, so the return trip is not
+          accessible.
+        </desc>
+
+        <!-- station label -->
+        <text x="0" y="22" fill="#FFFFFF" font-family="Helvetica,Arial" font-size="19" font-weight="700">49 St</text>
+        <text x="66" y="22" fill="#8B95A1" font-family="Helvetica,Arial" font-size="13">R15 · N Q R W</text>
+
+        <!-- northbound platform -->
+        <rect x="0" y="52" width="720" height="54" fill="#14181D" stroke="#00933C" stroke-width="2" rx="3"/>
+        <circle cx="30" cy="79" r="13" fill="#00933C"/>
+        <text x="30" y="85" fill="#FFFFFF" text-anchor="middle" font-family="Helvetica,Arial" font-size="15" font-weight="700">✓</text>
+        <text x="56" y="74" fill="#FFFFFF" font-family="Helvetica,Arial" font-size="14" font-weight="700">Northbound — toward Uptown</text>
+        <text x="56" y="93" fill="#63D392" font-family="Helvetica,Arial" font-size="12.5">Elevator in service · accessible</text>
+        <text x="700" y="85" fill="#63D392" text-anchor="end" font-family="Helvetica,Arial" font-size="12" letter-spacing="1">ARRIVE ↑</text>
+
+        <!-- track gap -->
+        <line x1="0" y1="125" x2="720" y2="125" stroke="#2A3038" stroke-width="1" stroke-dasharray="5 6"/>
+        <text x="360" y="121" fill="#787F8B" text-anchor="middle" font-family="Helvetica,Arial" font-size="10.5" letter-spacing="1.5">TRACKS</text>
+
+        <!-- southbound platform -->
+        <rect x="0" y="144" width="720" height="54" fill="#14181D" stroke="#EE352E" stroke-width="2" rx="3"/>
+        <circle cx="30" cy="171" r="13" fill="#EE352E"/>
+        <text x="30" y="177" fill="#FFFFFF" text-anchor="middle" font-family="Helvetica,Arial" font-size="15" font-weight="700">✕</text>
+        <text x="56" y="166" fill="#FFFFFF" font-family="Helvetica,Arial" font-size="14" font-weight="700">Southbound — toward Downtown</text>
+        <text x="56" y="185" fill="#FF9187" font-family="Helvetica,Arial" font-size="12.5">Not ADA accessible — stairs only</text>
+        <text x="700" y="177" fill="#FF9187" text-anchor="end" font-family="Helvetica,Arial" font-size="12" letter-spacing="1">↓ CANNOT RETURN</text>
+
+        <!-- verdict -->
+        <text x="0" y="232" fill="#F2C25C" font-family="Helvetica,Arial" font-size="13" font-weight="700">
+          mta_ada_status = 2 — partially accessible. One flag would have called this station “accessible”.
+        </text>
+      </svg>
+      <figcaption>
+        The same station, read two ways. A single per-station flag says 49 St is
+        accessible. Resolved per platform, it says a rider can get there and not
+        get home.
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="how" aria-labelledby="how-h">
+  <div class="wrap">
+    <p class="eyebrow">How it works</p>
+    <h2 id="how-h">Two public feeds, joined on identifiers that already match.</h2>
+    <p class="section-intro measure">
+      No name matching anywhere. The static ADA baseline joins to GTFS parent
+      stations 496 of 496; the elevator equipment feed joins 193 of 193.
+    </p>
+
+    <div class="pipeline">
+      <div class="step">
+        <div>
+          <h3>Read the static ADA baseline</h3>
+          <p>
+            The MTA Subway Stations dataset carries <code class="mono">ada_northbound</code>
+            and <code class="mono">ada_southbound</code> per station — the per-direction
+            truth that a single accessibility flag discards.
+          </p>
+        </div>
+      </div>
+      <div class="step">
+        <div>
+          <h3>Fold in live elevator outages</h3>
+          <p>
+            The Elevator &amp; Escalator API supplies current and scheduled outages.
+            Two rules keep it honest: an escalator outage never downgrades a station,
+            because an escalator is not an accessible route; and a redundant elevator
+            going down never downgrades it either, because a parallel unit covers
+            the same route.
+          </p>
+        </div>
+      </div>
+      <div class="step">
+        <div>
+          <h3>Write both encodings into the feed</h3>
+          <p>
+            Directional platforms carry the GTFS rating for their own direction —
+            which is how partial accessibility is expressed without inventing a
+            value the spec does not have. The MTA's own status is preserved
+            verbatim alongside it.
+          </p>
+        </div>
+      </div>
+      <div class="step">
+        <div>
+          <h3>Trace every trip's return leg</h3>
+          <p>
+            Trips in one direction call only at <code class="mono">N</code> platforms and
+            the other only at <code class="mono">S</code>, so the return leg for any stop is
+            unambiguously that station's opposite platform. Each trip is annotated
+            with the hazards along its route.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <caption>
+          Accessibility is written twice, because the two conventions disagree on the value 2.
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Value</th>
+            <th scope="col">GTFS <code class="mono">wheelchair_boarding</code></th>
+            <th scope="col">MTA <code class="mono">mta_ada_status</code></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code class="mono">0</code></td><td>No information</td><td>Not accessible</td></tr>
+          <tr><td><code class="mono">1</code></td><td>Accessible path exists</td><td>Fully accessible</td></tr>
+          <tr><td><code class="mono">2</code></td><td><strong>Boarding not possible</strong></td><td><strong>Partially accessible</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <p>
+        Writing the MTA's meaning into the GTFS column would tell every standard
+        trip planner the exact opposite of what was intended — a partially
+        accessible station would read as categorically unusable.
+      </p>
+      <p class="quiet">
+        So they are kept apart. Consumers read <code class="mono">wheelchair_boarding</code> and get
+        correct GTFS semantics; <code class="mono">mta_ada_status</code> is a non-standard column that
+        spec-compliant readers ignore.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section id="philosophy" aria-labelledby="phil-h">
+  <div class="wrap">
+    <p class="eyebrow">The design rule</p>
+    <h2 id="phil-h">Accessibility warns. It never blocks.</h2>
+    <p class="section-intro measure">
+      A trip through a platform that is not accessible is still returned, carrying
+      its advisories. Riders have workarounds the feed cannot see — a companion,
+      a transfer, a bus leg, a different exit — so the data's job is to inform the
+      decision, not make it.
+    </p>
+
+    <div class="severities">
+      <div class="sev sev-go">
+        <span class="glyph" aria-hidden="true">✓</span>
+        <div>
+          <div class="name">ADA accessible <code>step_free</code></div>
+          <div class="desc">ADA accessible out and back.</div>
+        </div>
+      </div>
+      <div class="sev sev-warn">
+        <span class="glyph" aria-hidden="true">↺</span>
+        <div>
+          <div class="name">Return not accessible <code>return_warning</code></div>
+          <div class="desc">Reachable, but the return leg is not accessible. The one-way trap.</div>
+        </div>
+      </div>
+      <div class="sev sev-stop">
+        <span class="glyph" aria-hidden="true">✕</span>
+        <div>
+          <div class="name">Not accessible <code>outbound_warning</code></div>
+          <div class="desc">Boarding or exiting is not accessible on this trip.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <p>
+        Strict filtering exists, and it is opt-in for a reason. Times Sq to Union
+        Sq returns 10,578 trips by default and <strong>zero</strong> with ADA accessibility
+        required — which presents to a rider as “no service” rather than “here are
+        your options, with caveats”.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section id="scope" aria-labelledby="scope-h">
+  <div class="wrap">
+    <p class="eyebrow">Scope</p>
+    <h2 id="scope-h">What this is, and what it is not.</h2>
+    <p class="section-intro measure">
+      Three pieces: a data layer that produces an augmented GTFS feed, a JSON API
+      that serves it, and a mobile app built for the riders who need it.
+    </p>
+
+    <div class="scope">
+      <div class="scope-col">
+        <h3>Built <span class="tag tag-done">Working</span></h3>
+        <ul>
+          <li><strong>Directional accessibility resolver</strong> — per-platform ADA accessibility across all 496 stations</li>
+          <li><strong>Live outage integration</strong> — elevator and escalator feeds, with blocking and degraded distinguished</li>
+          <li><strong>Return-trip risk detection</strong> — every trip annotated with the one-way traps along its route</li>
+          <li><strong>Augmented GTFS export</strong> — a drop-in feed any standard router can consume</li>
+          <li><strong>JSON API</strong> — FastAPI over an in-memory feed; trip queries in ~0.1s</li>
+          <li><strong>Mobile app</strong> — React Native, screen-reader first, live elevator status</li>
+        </ul>
+      </div>
+
+      <div class="scope-col">
+        <h3>Next <span class="tag tag-next">Planned</span></h3>
+        <ul>
+          <li><strong>Transfers</strong> — the planner currently covers single-train trips only</li>
+          <li><strong>Realtime arrivals</strong> — the GTFS-RT feeds are reachable and mapped, not yet wired in</li>
+          <li><strong>Scheduled rebuilds</strong> — the feed is a snapshot; outages change hourly</li>
+          <li><strong>Station entrance detail</strong> — which specific entrance has the elevator</li>
+        </ul>
+      </div>
+
+      <div class="scope-col">
+        <h3>Out of scope <span class="tag tag-out">Deliberate</span></h3>
+        <ul>
+          <li><strong>Deciding for the rider</strong> — the data advises; it does not hide options</li>
+          <li><strong>Name matching</strong> — every join is on a published identifier or it does not ship</li>
+          <li><strong>Direction-mapped outages</strong> — the feed does not map an elevator to a direction, so a blocking outage conservatively takes out both</li>
+          <li><strong>Buses, LIRR, Metro-North</strong> — subway only, for now</li>
+        </ul>
+      </div>
+    </div>
+
+    <pre><code><span class="c"># Build the augmented feed</span>
+python3 gtfs_accessibility.py          <span class="c">→ ~/Downloads/gtfs_accessible.zip</span>
+
+<span class="c"># Serve it</span>
+uvicorn api.main:app --host 0.0.0.0 --port 8000
+
+<span class="c"># Run the app</span>
+cd mobile &amp;&amp; npx expo start</code></pre>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>
+      Built on the MTA's public GTFS, Subway Stations, and Elevator &amp; Escalator
+      feeds. Accessibility figures reflect the feed at build time — outages change
+      hourly, so a rider-facing deployment rebuilds on a schedule.
+    </p>
+    <p><a href="https://github.com/">Source on GitHub</a></p>
+  </div>
+</footer>
+
+<script>
+// Theme toggle. Starts from the OS preference and only stamps the root once
+// the reader makes an explicit choice, so "system" stays the default.
+(function () {
+  var root = document.documentElement;
+  var button = document.getElementById('theme-toggle');
+  var stored = null;
+  try { stored = localStorage.getItem('theme'); } catch (e) {}
+
+  function apply(theme) {
+    if (theme) root.setAttribute('data-theme', theme);
+    else root.removeAttribute('data-theme');
+    var dark = theme
+      ? theme === 'dark'
+      : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    // Name stays "Dark theme"; only the pressed state changes.
+    button.setAttribute('aria-pressed', String(dark));
+  }
+
+  if (stored) apply(stored);
+  else apply(null);
+
+  button.addEventListener('click', function () {
+    var dark = root.getAttribute('data-theme')
+      ? root.getAttribute('data-theme') === 'dark'
+      : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var next = dark ? 'light' : 'dark';
+    apply(next);
+    try { localStorage.setItem('theme', next); } catch (e) {}
+  });
+})();
+</script>
+
+</body>
+</html>
