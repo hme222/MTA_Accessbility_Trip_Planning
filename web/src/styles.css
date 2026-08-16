@@ -536,6 +536,54 @@ main {
 .outage-info .outage-impact { color: var(--text-soft); }
 .outage-reason { font-size: 0.875rem; color: var(--text-soft); }
 
+/* -- map -------------------------------------------------------------- */
+
+.map-block { display: grid; gap: 0.9rem; justify-items: start; }
+.map-block > [hidden] { display: none; }
+.map-block > div:not([hidden]) { display: grid; gap: 0.75rem; width: 100%; }
+
+.map-frame {
+  border: 1px solid var(--rule-firm);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.map-canvas {
+  /* Tall enough to be useful, capped so it never swallows the viewport at
+     high zoom, where the text below matters more than the picture. */
+  height: min(22rem, 50vh);
+  width: 100%;
+  background: var(--surface-2);
+}
+
+/* Leaflet renders its own controls; keep them legible in dark mode. */
+.leaflet-container { font-family: var(--sans); background: var(--surface-2); }
+.leaflet-control-attribution {
+  background: rgba(255, 255, 255, 0.85) !important;
+  color: #22262B !important;
+}
+.leaflet-control-attribution a { color: #0039A6 !important; }
+
+.map-pin-wrap { display: grid; place-items: center; }
+.map-pin {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
+}
+.map-pin-glyph { color: #FFFFFF; font-size: 14px; font-weight: 800; line-height: 1; }
+.map-pin-label { display: none; }
+
+.map-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; font-size: 0.9375rem; }
+.map-legend li { display: flex; align-items: baseline; gap: 0.6rem; }
+.map-swatch {
+  width: 0.75rem; height: 0.75rem;
+  border-radius: 50%;
+  flex: none;
+  transform: translateY(0.1rem);
+}
+.map-note { font-size: 0.8125rem; color: var(--text-soft); }
+
 /* -- report form ----------------------------------------------------- */
 
 .fieldset {

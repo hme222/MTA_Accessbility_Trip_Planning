@@ -35,6 +35,7 @@ import {
 } from './components';
 import { ErrorBoundary } from './ErrorBoundary';
 import { Report } from './Report';
+import { TripMap } from './TripMap';
 import { useStations } from './useStations';
 
 type Panel = 'plan' | 'outages' | 'report';
@@ -465,6 +466,8 @@ function Results({
           </p>
         </div>
       ) : null}
+
+      <TripMap origin={plan.origin} destination={plan.destination} />
 
       {plan.count === 0 ? (
         <div className="notice notice-plain">
