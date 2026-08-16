@@ -13,12 +13,23 @@ read-only; every function in `gtfs_accessibility` already does, taking `.copy()`
 before it mutates.
 """
 
+import math
 import os
 import threading
 import time
 
 import gtfs_accessibility as ga
 from Requests_MTA import rebuild_elevator_status
+
+
+def _haversine_meters(lat1, lon1, lat2, lon2):
+    """Great-circle distance. Straight-line, so always shorter than the walk."""
+    radius = 6371000
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlambda / 2) ** 2
+    return 2 * radius * math.asin(math.sqrt(a))
 
 # Live outage data is refetched at most this often. The E&E feed updates on the
 # order of minutes, and a stale elevator status is worse than a slow one.
@@ -177,6 +188,59 @@ class FeedCache:
         return self._derive(
             "station_index", lambda: {st["stop_id"]: st for st in self.stations()}
         )
+
+    def nearby_accessible(self, stop_id, limit=4, direction=None, max_meters=1600):
+        """Accessible stations near `stop_id`, nearest first.
+
+        Warning a rider that their station is unusable is only half an answer;
+        this supplies the other half. Stations sharing a route with the original
+        come first -- a nearby accessible station on an unrelated line rarely
+        helps -- and within that, nearest wins.
+
+        Distances are straight-line, which understates the walk. They are
+        labeled as such rather than dressed up as walking directions the feed
+        cannot actually produce.
+        """
+        origin = self.station_index().get(stop_id)
+        if origin is None or origin["lat"] is None:
+            return []
+
+        origin_routes = set(origin["routes"])
+        out = []
+
+        for station in self.stations():
+            if station["stop_id"] == stop_id or station["lat"] is None:
+                continue
+
+            if direction == "N" and not station["northbound"]:
+                continue
+            if direction == "S" and not station["southbound"]:
+                continue
+            if direction is None and not (station["northbound"] or station["southbound"]):
+                continue
+
+            meters = _haversine_meters(
+                origin["lat"], origin["lon"], station["lat"], station["lon"]
+            )
+            if meters > max_meters:
+                continue
+
+            shared = sorted(origin_routes & set(station["routes"]))
+            out.append(
+                {
+                    "stop_id": station["stop_id"],
+                    "stop_name": station["stop_name"],
+                    "routes": station["routes"],
+                    "shared_routes": shared,
+                    "northbound": station["northbound"],
+                    "southbound": station["southbound"],
+                    "reason": station["reason"],
+                    "meters": round(meters),
+                }
+            )
+
+        out.sort(key=lambda s: (not s["shared_routes"], s["meters"]))
+        return out[:limit]
 
     # -- live outages -----------------------------------------------------
 

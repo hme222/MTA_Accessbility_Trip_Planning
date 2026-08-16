@@ -176,6 +176,38 @@ def station(stop_id: str):
     return _station_or_404(stop_id)
 
 
+class Alternative(BaseModel):
+    stop_id: str
+    stop_name: str
+    routes: List[str] = []
+    shared_routes: List[str] = []
+    northbound: bool
+    southbound: bool
+    reason: str = ""
+    meters: int
+
+
+@app.get("/stations/{stop_id}/alternatives", response_model=List[Alternative])
+def alternatives(
+    stop_id: str,
+    direction: Optional[str] = Query(None, pattern="^[NS]$"),
+    limit: int = Query(4, ge=1, le=10),
+    max_meters: int = Query(1600, ge=100, le=5000),
+):
+    """Accessible stations near one that is not.
+
+    Telling a rider their station does not work is only half an answer. Results
+    prefer stations sharing a route with the original, then proximity.
+
+    `meters` is straight-line distance, which understates the actual walk.
+    """
+    _require_feed()
+    _station_or_404(stop_id)
+    return cache.nearby_accessible(
+        stop_id, limit=limit, direction=direction, max_meters=max_meters
+    )
+
+
 @app.get("/plan", response_model=PlanResponse)
 def plan(
     origin: str = Query(..., description="Parent station id, e.g. R16"),

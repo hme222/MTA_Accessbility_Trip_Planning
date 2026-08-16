@@ -9,11 +9,15 @@
  */
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
-import type { Severity, Station, TripOption } from './api';
+import { speak, speechSupported, stop as stopSpeech } from './speech';
+
+import type { Alternative, Severity, Station, TripOption } from './api';
 import {
   accessLevel,
   accessSummary,
+  describeDistance,
   durationMinutes,
+  fetchAlternatives,
   formatTime,
   severityGlyph,
   severityLabel,
@@ -313,6 +317,103 @@ export function StationCombobox({
   );
 }
 
+// -- accessible alternatives ---------------------------------------------
+
+/**
+ * Nearby accessible stations, offered when the chosen one is not.
+ *
+ * Warning a rider that their station does not work is only half an answer.
+ * This is the other half, and it is a suggestion rather than a substitution —
+ * the rider decides, and their original choice stays selected until they say
+ * otherwise.
+ */
+export function Alternatives({
+  station,
+  role,
+  onSwap,
+}: {
+  station: Station;
+  role: 'origin' | 'destination';
+  /** Receives the chosen stop_id; the caller resolves it against its own list. */
+  onSwap: (stopId: string) => void;
+}) {
+  const [items, setItems] = useState<Alternative[]>([]);
+  const [state, setState] = useState<'idle' | 'loading' | 'done'>('idle');
+  const headingId = useId();
+
+  const level = accessLevel(station);
+
+  useEffect(() => {
+    if (level === 'full') {
+      setItems([]);
+      return;
+    }
+    const controller = new AbortController();
+    setState('loading');
+    // For a partially accessible station, look for somewhere usable in the
+    // direction this one is missing.
+    const direction = level === 'partial' ? (station.northbound ? 'S' : 'N') : undefined;
+    fetchAlternatives(station.stop_id, { direction, limit: 3 }, controller.signal)
+      .then(setItems)
+      .catch(() => setItems([]))
+      .finally(() => setState('done'));
+    return () => controller.abort();
+  }, [station.stop_id, level, station.northbound]);
+
+  if (level === 'full' || state === 'loading' || items.length === 0) return null;
+
+  const problem =
+    level === 'none'
+      ? `${station.stop_name} is not ADA accessible.`
+      : `${station.stop_name} is only accessible ${station.northbound ? 'uptown' : 'downtown'}.`;
+
+  return (
+    <section className="alternatives" aria-labelledby={headingId}>
+      <h3 id={headingId} className="alternatives-head">
+        <span aria-hidden="true">↦</span> {problem} Nearby accessible{' '}
+        {role === 'origin' ? 'starting points' : 'destinations'}:
+      </h3>
+
+      <ul className="alt-list">
+        {items.map((alt) => {
+          const shared = alt.shared_routes.length
+            ? `Same ${alt.shared_routes.join(', ')} ${alt.shared_routes.length === 1 ? 'line' : 'lines'}`
+            : 'Different lines';
+
+          return (
+            <li key={alt.stop_id}>
+              <button
+                type="button"
+                className="alt"
+                onClick={() => onSwap(alt.stop_id)}
+                // One sentence covering everything the row shows, plus what
+                // pressing it will do.
+                aria-label={`Use ${alt.stop_name} instead. ${describeDistance(alt.meters)}, straight line. ${shared}. ${spokenRoutes(alt.routes)}.`}
+              >
+                <span className="alt-name">{alt.stop_name}</span>
+                <span className="alt-meta">
+                  <RouteBullets routes={alt.routes} />
+                  <span aria-hidden="true">
+                    {describeDistance(alt.meters)} · {shared}
+                  </span>
+                </span>
+                <span className="alt-action" aria-hidden="true">
+                  Use this
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+
+      <p className="alt-note">
+        Distances are straight-line, so the walk is longer. Your choice is unchanged until
+        you pick one.
+      </p>
+    </section>
+  );
+}
+
 // -- switch ---------------------------------------------------------------
 
 export function Switch({
@@ -394,6 +495,75 @@ export function TripCard({ trip, destination }: { trip: TripOption; destination:
       ) : null}
     </li>
   );
+}
+
+// -- read aloud -----------------------------------------------------------
+
+/**
+ * Speaks a block of text on demand.
+ *
+ * The button is the whole interface: press to start, press again to stop. It
+ * renders nothing at all where the browser has no speech synthesis, rather than
+ * offering a control that would do nothing.
+ */
+export function ReadAloud({ text, label = 'Read results aloud' }: { text: string; label?: string }) {
+  const [speaking, setSpeaking] = useState(false);
+
+  // Speech outlives the component unless it is explicitly cancelled, so a
+  // navigation away would otherwise keep talking.
+  useEffect(() => () => stopSpeech(), []);
+
+  if (!speechSupported()) return null;
+
+  const toggle = () => {
+    if (speaking) {
+      stopSpeech();
+      setSpeaking(false);
+      return;
+    }
+    setSpeaking(true);
+    speak(text, () => setSpeaking(false));
+  };
+
+  return (
+    <button
+      type="button"
+      className="btn btn-secondary btn-speak"
+      onClick={toggle}
+      aria-label={speaking ? 'Stop reading' : label}
+    >
+      <span aria-hidden="true">{speaking ? '◼' : '▶'}</span>
+      {speaking ? 'Stop' : 'Read aloud'}
+    </button>
+  );
+}
+
+/** Everything on the results panel, as one spoken passage. */
+export function spokenPlan(
+  destination: string,
+  count: number,
+  summary: string,
+  trips: TripOption[],
+  limit = 5,
+): string {
+  if (count === 0) return 'No trips found.';
+
+  const parts = [
+    `${count} trip${count === 1 ? '' : 's'} to ${destination}. ${summary}.`,
+    // Reading twenty departures aloud is not useful; the next few are.
+    `Here ${Math.min(limit, trips.length) === 1 ? 'is the next one' : `are the next ${Math.min(limit, trips.length)}`}.`,
+  ];
+
+  trips.slice(0, limit).forEach((trip, index) => {
+    parts.push(
+      `${index + 1}. The ${trip.route_id} train toward ${trip.trip_headsign}, ` +
+        `departing ${spokenTime(trip.depart)}, arriving ${spokenTime(trip.arrive)}. ` +
+        `${severitySpoken[trip.severity]}.` +
+        (trip.advisories.length ? ` ${trip.advisories.join('. ')}.` : ''),
+    );
+  });
+
+  return parts.join(' ');
 }
 
 // -- states ---------------------------------------------------------------

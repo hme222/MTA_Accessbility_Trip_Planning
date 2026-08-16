@@ -350,6 +350,69 @@ main {
 }
 .btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
 
+/* -- accessible alternatives ----------------------------------------- */
+
+/*
+ * Offered when a chosen station is not accessible. Styled as a suggestion, not
+ * an error: the rider's own choice is still valid and still selected, and this
+ * sits beside it rather than replacing it.
+ */
+.alternatives {
+  margin-top: -0.5rem;
+  padding: 1rem 1.1rem;
+  background: var(--warn-bg);
+  border: 1px solid var(--warn);
+  border-left-width: 6px;
+  border-radius: var(--radius);
+  display: grid;
+  gap: 0.75rem;
+}
+.alternatives-head {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--warn);
+  display: flex;
+  gap: 0.4rem;
+  align-items: baseline;
+}
+.alt-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+
+.alt {
+  font: inherit;
+  width: 100%;
+  min-height: var(--tap);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.75rem;
+  text-align: left;
+  padding: 0.6rem 0.8rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--rule-firm);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.alt:hover { border-color: var(--accent); background: var(--accent-bg); }
+.alt-name { font-weight: 700; }
+.alt-meta {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  font-size: 0.8125rem; color: var(--text-soft);
+  min-width: 0;
+}
+.alt-action {
+  margin-left: auto;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.alt-note { font-size: 0.75rem; color: var(--text-soft); }
+
+@media (max-width: 26rem) {
+  .alt-action { margin-left: 0; }
+}
+
 /* -- results --------------------------------------------------------- */
 
 .results { margin-top: 2rem; display: grid; gap: 1rem; }
@@ -472,6 +535,84 @@ main {
 .outage-blocking .outage-impact { color: var(--stop); }
 .outage-info .outage-impact { color: var(--text-soft); }
 .outage-reason { font-size: 0.875rem; color: var(--text-soft); }
+
+/* -- report form ----------------------------------------------------- */
+
+.fieldset {
+  border: 1px solid var(--rule-firm);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  margin: 0;
+}
+.fieldset legend {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  color: var(--text-soft);
+  padding: 0 0.4rem;
+}
+.radios { display: grid; gap: 0.25rem; }
+.radio {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  /* Full-row target: the label is part of the control, not a caption beside it. */
+  min-height: var(--tap);
+  padding: 0.35rem 0.4rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.radio:hover { background: var(--surface-2); }
+.radio input { width: 1.15rem; height: 1.15rem; flex: none; accent-color: var(--accent); }
+
+.field textarea {
+  font: inherit;
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--rule-firm);
+  border-radius: var(--radius);
+  resize: vertical;
+  min-height: 5rem;
+}
+.field textarea::placeholder { color: var(--text-soft); opacity: 1; }
+
+.report-out {
+  margin-top: 2rem;
+  padding: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 0.9rem;
+}
+.report-out h3 { font-size: 1rem; }
+.report-text {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  background: var(--surface-2);
+  padding: 1rem;
+  border-radius: var(--radius);
+  overflow-x: auto;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.send-list { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.6rem; font-size: 0.9375rem; }
+
+/* -- read aloud ------------------------------------------------------ */
+
+.btn-speak {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding-inline: 0.9rem;
+  font-size: 0.875rem;
+}
 
 /* -- states ---------------------------------------------------------- */
 

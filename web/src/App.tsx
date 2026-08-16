@@ -13,20 +13,31 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { Outage, OutageResponse, PlanResponse, Severity, Station } from './api';
 import {
+  accessSummary,
   ApiError,
   describeAge,
   fetchHealth,
   fetchOutages,
   fetchPlan,
-  fetchStations,
   fromInputValues,
   toInputValues,
   todayInNewYork,
 } from './api';
-import { ErrorNotice, Loading, StationCombobox, Switch, TripCard } from './components';
+import {
+  Alternatives,
+  ErrorNotice,
+  Loading,
+  ReadAloud,
+  StationCombobox,
+  Switch,
+  TripCard,
+  spokenPlan,
+} from './components';
 import { ErrorBoundary } from './ErrorBoundary';
+import { Report } from './Report';
+import { useStations } from './useStations';
 
-type Panel = 'plan' | 'outages';
+type Panel = 'plan' | 'outages' | 'report';
 
 export default function App() {
   const [panel, setPanel] = useState<Panel>('plan');
@@ -67,6 +78,16 @@ export default function App() {
           hidden={panel !== 'outages'}
         >
           <ErrorBoundary>{panel === 'outages' ? <Outages /> : null}</ErrorBoundary>
+        </div>
+
+        <div
+          role="tabpanel"
+          id="panel-report"
+          aria-labelledby="tab-report"
+          tabIndex={-1}
+          hidden={panel !== 'report'}
+        >
+          <ErrorBoundary>{panel === 'report' ? <ReportPanel /> : null}</ErrorBoundary>
         </div>
       </main>
 
@@ -125,6 +146,7 @@ function Tabs({ panel, onChange }: { panel: Panel; onChange: (next: Panel) => vo
   const tabs: { key: Panel; label: string }[] = [
     { key: 'plan', label: 'Plan a trip' },
     { key: 'outages', label: 'Elevators' },
+    { key: 'report', label: 'Report a problem' },
   ];
 
   // Arrow-key navigation is expected of a tablist, and its absence strands
@@ -194,10 +216,16 @@ function Freshness() {
 
 // -- planner --------------------------------------------------------------
 
+function ReportPanel() {
+  const { stations, loading, error, retry } = useStations();
+  if (loading) return <Loading label="Loading stations…" />;
+  if (error) return <ErrorNotice message={error} onRetry={retry} />;
+  return <Report stations={stations} />;
+}
+
 function Planner() {
-  const [stations, setStations] = useState<Station[]>([]);
-  const [loadingStations, setLoadingStations] = useState(true);
-  const [stationError, setStationError] = useState<string | null>(null);
+  const { stations, loading: loadingStations, error: stationError, retry: loadStations } =
+    useStations();
 
   const [origin, setOrigin] = useState<Station | undefined>();
   const [destination, setDestination] = useState<Station | undefined>();
@@ -217,22 +245,6 @@ function Planner() {
 
   const resultsRef = useRef<HTMLHeadingElement>(null);
   const requestId = useRef(0);
-
-  const loadStations = useCallback(() => {
-    const controller = new AbortController();
-    setLoadingStations(true);
-    setStationError(null);
-    fetchStations(controller.signal)
-      .then(setStations)
-      .catch((err) => {
-        if (err instanceof DOMException && err.name === 'AbortError') return;
-        setStationError(err instanceof ApiError ? err.message : 'Could not load stations.');
-      })
-      .finally(() => setLoadingStations(false));
-    return () => controller.abort();
-  }, []);
-
-  useEffect(() => loadStations(), [loadStations]);
 
   // Results belong to a specific pair; a changed selection invalidates them.
   useEffect(() => {
@@ -266,6 +278,22 @@ function Planner() {
     } finally {
       if (id === requestId.current) setSearching(false);
     }
+  };
+
+  /**
+   * Replace one end of the trip with a suggested accessible station.
+   *
+   * Confirmed out loud, because the field the user is not looking at is the
+   * one that changed.
+   */
+  const swapTo = (which: 'origin' | 'destination', stopId: string) => {
+    const next = stations.find((s) => s.stop_id === stopId);
+    if (!next) return;
+    if (which === 'origin') setOrigin(next);
+    else setDestination(next);
+    setNotice(
+      `${which === 'origin' ? 'Start' : 'Destination'} changed to ${next.stop_name}, which is ${accessSummary(next).toLowerCase()}.`,
+    );
   };
 
   const swap = () => {
@@ -310,6 +338,9 @@ function Planner() {
           exclude={destination?.stop_id}
           onChange={setOrigin}
         />
+        {origin ? (
+          <Alternatives station={origin} role="origin" onSwap={(id) => swapTo('origin', id)} />
+        ) : null}
 
         <StationCombobox
           label="To"
@@ -318,6 +349,13 @@ function Planner() {
           exclude={origin?.stop_id}
           onChange={setDestination}
         />
+        {destination ? (
+          <Alternatives
+            station={destination}
+            role="destination"
+            onSwap={(id) => swapTo('destination', id)}
+          />
+        ) : null}
 
         <div className="when">
           <div className="field">
@@ -402,6 +440,16 @@ function Results({
             : `${plan.count} trip${plan.count === 1 ? '' : 's'} to ${plan.destination.stop_name}`}
         </h2>
         {plan.count > 0 ? <p className="results-count">{summarize(counts)}</p> : null}
+        {plan.count > 0 ? (
+          <ReadAloud
+            text={spokenPlan(
+              plan.destination.stop_name,
+              plan.count,
+              summarize(counts),
+              plan.trips,
+            )}
+          />
+        ) : null}
       </div>
 
       {/* The headline finding this project exists to surface: you can get

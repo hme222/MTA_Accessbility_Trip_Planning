@@ -143,6 +143,40 @@ export function fetchOutages(signal?: AbortSignal): Promise<OutageResponse> {
   return get<OutageResponse>('/outages', {}, signal);
 }
 
+export interface Alternative {
+  stop_id: string;
+  stop_name: string;
+  routes: string[];
+  shared_routes: string[];
+  northbound: boolean;
+  southbound: boolean;
+  reason: string;
+  /** Straight-line distance. Always shorter than the actual walk. */
+  meters: number;
+}
+
+export function fetchAlternatives(
+  stopId: string,
+  options: { direction?: 'N' | 'S'; limit?: number } = {},
+  signal?: AbortSignal,
+): Promise<Alternative[]> {
+  return get<Alternative[]>(
+    `/stations/${encodeURIComponent(stopId)}/alternatives`,
+    { direction: options.direction, limit: options.limit ?? 3 },
+    signal,
+  );
+}
+
+/** Distance in the units a New Yorker actually thinks in. */
+export function describeDistance(meters: number): string {
+  if (meters < 800) {
+    // ~80 m per short block; useful and familiar, but rounded, not precise.
+    const blocks = Math.max(1, Math.round(meters / 80));
+    return `${blocks} block${blocks === 1 ? '' : 's'} away`;
+  }
+  return `${(meters / 1609).toFixed(1)} miles away`;
+}
+
 export interface Health {
   status: string;
   stations: number;
