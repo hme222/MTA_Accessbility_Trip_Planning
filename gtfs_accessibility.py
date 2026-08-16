@@ -413,6 +413,360 @@ def plan_trip(gtfs_dir, origin, destination, date=None, after=None, limit=None):
     return plan.reset_index(drop=True)
 
 
+def gtfs_seconds(value):
+    """'25:14:30' -> seconds past midnight. GTFS hours pass 24 after midnight."""
+    hours, minutes, seconds = (int(part) for part in value.split(":"))
+    return hours * 3600 + minutes * 60 + seconds
+
+
+def transfer_graph(gtfs_dir):
+    """Map parent station -> [(reachable station, minimum transfer seconds)].
+
+    `transfers.txt` carries two kinds of row, and they mean different things:
+
+      * `from == to` -- changing trains inside one station complex.
+      * `from != to` -- an in-system passageway between two complexes, such as
+        59 St-Columbus Circle's IRT and IND halves.
+
+    Every NYC row is `transfer_type=2`, a minimum time rather than a guarantee.
+    A station with no self-transfer row still permits a same-platform change, so
+    it gets a default.
+    """
+    graph = {}
+    transfers = read_table(gtfs_dir, "transfers.txt")
+
+    for row in transfers.itertuples(index=False):
+        seconds = int(row.min_transfer_time) if str(row.min_transfer_time).isdigit() else 180
+        graph.setdefault(row.from_stop_id, []).append((row.to_stop_id, seconds))
+
+    return graph
+
+
+# A transfer inside one complex when the feed lists no explicit time for it.
+DEFAULT_TRANSFER_SECONDS = 180
+
+
+def station_complexes(gtfs_dir):
+    """Group parent stations that a rider experiences as one station.
+
+    GTFS gives 14 St-Union Sq three parent stations -- `L03` for the L, `R20`
+    for the N/Q/R/W, `635` for the 4/5/6 -- but nobody arranges to meet at
+    "R20". Planning to one of them alone discards every route that arrives on a
+    different platform of the same station, which is most of them.
+
+    The cross-station rows of `transfers.txt` are exactly this grouping: an
+    in-system passageway between two parents. Following them transitively
+    yields the complex.
+
+    Returns {parent_station: frozenset(all parents in its complex)}.
+    """
+    adjacency = {}
+    transfers = read_table(gtfs_dir, "transfers.txt")
+
+    for row in transfers.itertuples(index=False):
+        if row.from_stop_id == row.to_stop_id:
+            continue
+        adjacency.setdefault(row.from_stop_id, set()).add(row.to_stop_id)
+        adjacency.setdefault(row.to_stop_id, set()).add(row.from_stop_id)
+
+    complexes = {}
+    for start in adjacency:
+        if start in complexes:
+            continue
+        # Flood fill: complexes chain (Times Sq reaches 42 St-Port Authority).
+        group, queue = set(), [start]
+        while queue:
+            node = queue.pop()
+            if node in group:
+                continue
+            group.add(node)
+            queue.extend(adjacency.get(node, ()))
+        frozen = frozenset(group)
+        for member in group:
+            complexes[member] = frozen
+
+    return complexes
+
+
+def complex_of(gtfs_dir, station_id):
+    """Every parent station a rider would call by the same name."""
+    return sorted(station_complexes(gtfs_dir).get(station_id, {station_id}))
+
+
+def _leg_candidates(gtfs_dir, station_ids, services, stops):
+    """Trips calling at `station_ids`, with each call's time and position."""
+    children = stops[stops["parent_station"].isin(station_ids)]
+    parent_of = dict(zip(children["stop_id"], children["parent_station"]))
+
+    stop_times = read_table(
+        gtfs_dir,
+        "stop_times.txt",
+        usecols=["trip_id", "stop_id", "arrival_time", "departure_time", "stop_sequence"],
+    )
+    hits = stop_times[stop_times["stop_id"].isin(parent_of)].copy()
+    if hits.empty:
+        return hits, stop_times
+
+    hits["station_id"] = hits["stop_id"].map(parent_of)
+    hits["stop_sequence"] = hits["stop_sequence"].astype(int)
+
+    trips = read_table(gtfs_dir, "trips.txt")
+    hits = hits.merge(trips, on="trip_id")
+    if services is not None:
+        hits = hits[hits["service_id"].isin(services)]
+
+    return hits, stop_times
+
+
+def plan_trip_with_transfer(
+    gtfs_dir,
+    origin,
+    destination,
+    date=None,
+    after=None,
+    limit=None,
+    max_wait_seconds=3600,
+    window_seconds=5400,
+):
+    """Plan origin -> destination allowing one change of train.
+
+    Direct trips are the job of `plan_trip`; this covers what it cannot reach.
+    That matters more here than in an ordinary planner: only 140 of 496 stations
+    are fully accessible, so a large share of usable journeys *require* a change.
+
+    Accessibility is judged at four platforms, not one -- board at the origin,
+    alight at the transfer, board again, alight at the destination -- plus the
+    return leg. A single inaccessible platform anywhere breaks the journey, so
+    each is reported separately rather than collapsed into one verdict.
+
+    **What the feed cannot say.** GTFS does not record whether the connection
+    *inside* a station is step-free. For a change within one complex, both
+    platforms being accessible is treated as sufficient, which is an inference
+    and not a fact. For a passageway between two complexes it is not even that,
+    so those carry an explicit "connection not verified" advisory. As everywhere
+    else here, the uncertainty is surfaced rather than resolved by guessing.
+    """
+    stops = read_table(gtfs_dir, "stops.txt")
+    services = active_services(gtfs_dir, date) if date is not None else None
+
+    # A rider names a station, not a platform group, so both ends cover the
+    # whole complex -- otherwise every route arriving on a different line's
+    # platform of the same station is discarded.
+    origin_group = complex_of(gtfs_dir, origin)
+    destination_group = complex_of(gtfs_dir, destination)
+
+    boarding, stop_times = _leg_candidates(gtfs_dir, origin_group, services, stops)
+    alighting, _ = _leg_candidates(gtfs_dir, destination_group, services, stops)
+    if boarding.empty or alighting.empty:
+        return pd.DataFrame()
+
+    # Only boardings inside the requested window. Without this the search walks
+    # every departure for the rest of the service day -- tens of thousands of
+    # trips at a hub like Times Sq -- to rank options nobody asked for.
+    after_seconds = gtfs_seconds(after) if after else 0
+    depart_seconds = boarding["departure_time"].map(gtfs_seconds)
+    boarding = boarding[
+        (depart_seconds >= after_seconds) & (depart_seconds <= after_seconds + window_seconds)
+    ]
+    if boarding.empty:
+        return pd.DataFrame()
+
+    # Everything downstream of each origin boarding, and everything upstream of
+    # each destination alighting. The transfer must appear in both.
+    stop_times = stop_times.copy()
+    stop_times["stop_sequence"] = stop_times["stop_sequence"].astype(int)
+    child_parent = dict(
+        zip(
+            stops.loc[stops["parent_station"].notna(), "stop_id"],
+            stops.loc[stops["parent_station"].notna(), "parent_station"],
+        )
+    )
+
+    first = stop_times[stop_times["trip_id"].isin(set(boarding["trip_id"]))].copy()
+    second = stop_times[stop_times["trip_id"].isin(set(alighting["trip_id"]))].copy()
+    first["station_id"] = first["stop_id"].map(child_parent)
+    second["station_id"] = second["stop_id"].map(child_parent)
+
+    board_seq = dict(zip(boarding["trip_id"], boarding["stop_sequence"]))
+    board_time = dict(zip(boarding["trip_id"], boarding["departure_time"]))
+    board_stop = dict(zip(boarding["trip_id"], boarding["stop_id"]))
+
+    alight_seq = dict(zip(alighting["trip_id"], alighting["stop_sequence"]))
+    alight_time = dict(zip(alighting["trip_id"], alighting["arrival_time"]))
+    alight_stop = dict(zip(alighting["trip_id"], alighting["stop_id"]))
+
+    first = first[first["stop_sequence"] > first["trip_id"].map(board_seq)]
+    second = second[second["stop_sequence"] < second["trip_id"].map(alight_seq)]
+
+    # A connecting train cannot depart before the first one leaves, nor later
+    # than the window plus the longest wait worth showing.
+    horizon = after_seconds + window_seconds + max_wait_seconds
+    second_departs = second["departure_time"].map(gtfs_seconds)
+    second = second[(second_departs >= after_seconds) & (second_departs <= horizon)]
+    if first.empty or second.empty:
+        return pd.DataFrame()
+
+    graph = transfer_graph(gtfs_dir)
+    trips_table = read_table(gtfs_dir, "trips.txt")
+    route_of = dict(zip(trips_table["trip_id"], trips_table["route_id"]))
+    headsign_of = dict(zip(trips_table["trip_id"], trips_table["trip_headsign"]))
+    names = dict(zip(stops["stop_id"], stops["stop_name"]))
+    boarding_flag = dict(zip(stops["stop_id"], stops["wheelchair_boarding"]))
+
+    # Where leg two can be joined, keyed by station, kept in departure order.
+    joinable = {}
+    for row in second.itertuples(index=False):
+        joinable.setdefault(row.station_id, []).append(row)
+    for station in joinable:
+        joinable[station].sort(key=lambda r: gtfs_seconds(r.departure_time))
+
+    origin_set = set(origin_group)
+    destination_set = set(destination_group)
+
+    rows = []
+    seen = set()
+    for arrival in first.itertuples(index=False):
+        if arrival.station_id is None or arrival.station_id in destination_set:
+            continue
+        if arrival.station_id in origin_set:
+            continue  # still at the start; not a transfer yet
+
+        arrive_seconds = gtfs_seconds(arrival.arrival_time)
+
+        # Change here, or walk to a linked complex.
+        options = [(arrival.station_id, DEFAULT_TRANSFER_SECONDS)]
+        options += [(to, secs) for to, secs in graph.get(arrival.station_id, [])]
+
+        for transfer_station, min_seconds in options:
+            for departure in joinable.get(transfer_station, ()):
+                wait = gtfs_seconds(departure.departure_time) - arrive_seconds
+                if wait < min_seconds:
+                    continue
+                if wait > max_wait_seconds:
+                    break  # sorted by time; everything later waits longer
+                if departure.trip_id == arrival.trip_id:
+                    continue  # same train is a direct trip, not a transfer
+
+                key = (arrival.trip_id, departure.trip_id, transfer_station)
+                if key in seen:
+                    continue
+                seen.add(key)
+
+                rows.append(
+                    _describe_transfer(
+                        arrival,
+                        departure,
+                        transfer_station,
+                        wait,
+                        origin,
+                        destination,
+                        route_of,
+                        headsign_of,
+                        names,
+                        boarding_flag,
+                        board_time,
+                        board_stop,
+                        alight_time,
+                        alight_stop,
+                    )
+                )
+
+    if not rows:
+        return pd.DataFrame()
+
+    plan = pd.DataFrame(rows).sort_values(["arrive", "depart"]).reset_index(drop=True)
+    # One option per pair of routes and transfer point; a dozen departures of
+    # the same combination is noise, not choice.
+    plan = plan.drop_duplicates(subset=["route_1", "route_2", "transfer_station"], keep="first")
+    if limit is not None:
+        plan = plan.head(limit)
+    return plan.reset_index(drop=True)
+
+
+def _describe_transfer(
+    arrival,
+    departure,
+    transfer_station,
+    wait,
+    origin,
+    destination,
+    route_of,
+    headsign_of,
+    names,
+    boarding_flag,
+    board_time,
+    board_stop,
+    alight_time,
+    alight_stop,
+):
+    """Turn one leg pair into a row, with the accessibility of all four platforms."""
+
+    platforms = {
+        "board": board_stop[arrival.trip_id],
+        "transfer_in": arrival.stop_id,
+        "transfer_out": departure.stop_id,
+        "alight": alight_stop[departure.trip_id],
+    }
+    ok = {k: boarding_flag.get(v) == WB_ACCESSIBLE for k, v in platforms.items()}
+
+    # The return leg from the destination is the opposite platform.
+    dest_platform = platforms["alight"]
+    opposite = destination + ("S" if dest_platform.endswith("N") else "N")
+    return_ok = boarding_flag.get(opposite) == WB_ACCESSIBLE
+
+    notes = []
+    if not ok["board"]:
+        notes.append("no accessible boarding at %s" % names.get(origin, origin))
+    if not ok["transfer_in"] or not ok["transfer_out"]:
+        notes.append(
+            "changing trains at %s is not accessible"
+            % names.get(transfer_station, transfer_station)
+        )
+    if not ok["alight"]:
+        notes.append("no accessible exit at %s" % names.get(destination, destination))
+    if not return_ok:
+        notes.append("return trip from %s is not accessible" % names.get(destination, destination))
+
+    # A different GTFS parent with the same name is the same station to a
+    # rider -- Times Sq has five. Only a genuine change of station counts.
+    from_name = names.get(arrival.station_id, arrival.station_id)
+    to_name = names.get(transfer_station, transfer_station)
+    cross_complex = transfer_station != arrival.station_id and from_name != to_name
+
+    if cross_complex and ok["transfer_in"] and ok["transfer_out"]:
+        # Honest about the gap: both platforms work, the passageway is unknown.
+        notes.append(
+            "the walk from %s to %s is not described in the feed — verify it before relying on it"
+            % (from_name, to_name)
+        )
+
+    if all(ok.values()) and return_ok:
+        severity = "step_free"
+    elif all(ok.values()):
+        severity = "return_warning"
+    else:
+        severity = "outbound_warning"
+
+    return {
+        "depart": board_time[arrival.trip_id],
+        "arrive": alight_time[departure.trip_id],
+        "route_1": route_of.get(arrival.trip_id, ""),
+        "headsign_1": headsign_of.get(arrival.trip_id, ""),
+        "leg1_arrive": arrival.arrival_time,
+        "transfer_station": transfer_station,
+        "transfer_name": names.get(transfer_station, transfer_station),
+        "wait_seconds": int(wait),
+        "cross_complex": cross_complex,
+        "route_2": route_of.get(departure.trip_id, ""),
+        "headsign_2": headsign_of.get(departure.trip_id, ""),
+        "leg2_depart": departure.departure_time,
+        "severity": severity,
+        "advisories": "; ".join(notes),
+        "trip_1": arrival.trip_id,
+        "trip_2": departure.trip_id,
+    }
+
+
 def platform_return_risks(stops, resolved):
     """Identify platforms a rider can reach but cannot depart from in reverse.
 

@@ -177,6 +177,48 @@ export function describeDistance(meters: number): string {
   return `${(meters / 1609).toFixed(1)} miles away`;
 }
 
+export interface TransferLeg {
+  route: string;
+  headsign: string;
+  depart: string;
+  arrive: string;
+}
+
+export interface TransferOption {
+  depart: string;
+  arrive: string;
+  total_minutes: number;
+  wait_minutes: number;
+  transfer_station: string;
+  transfer_name: string;
+  /** True only when the change means walking to a differently-named station. */
+  cross_complex: boolean;
+  leg_1: TransferLeg;
+  leg_2: TransferLeg;
+  severity: Severity;
+  advisories: string[];
+}
+
+export interface TransferResponse {
+  origin: Station;
+  destination: Station;
+  count: number;
+  options: TransferOption[];
+}
+
+export function fetchTransfers(
+  origin: string,
+  destination: string,
+  options: { date?: string; after?: string; limit?: number } = {},
+  signal?: AbortSignal,
+): Promise<TransferResponse> {
+  return get<TransferResponse>(
+    '/plan/transfers',
+    { origin, destination, date: options.date, after: options.after, limit: options.limit ?? 8 },
+    signal,
+  );
+}
+
 export interface BusAlert {
   id: string;
   routes: string[];

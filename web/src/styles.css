@@ -851,3 +851,54 @@ footer div { width: min(100% - 2rem, 940px); margin-inline: auto; }
   font-variant-numeric: tabular-nums; line-height: 1;
 }
 .outcome .cap { margin-top: 0.4rem; font-size: 0.8125rem; color: var(--text-soft); line-height: 1.4; }
+
+/* -- transfer legs ----------------------------------------------------- */
+
+.legs { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.legs > li { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+.leg-text { font-size: 0.9375rem; min-width: 0; }
+.leg-time { color: var(--text-soft); }
+.leg-walk { color: var(--warn); font-weight: 600; }
+
+/* The change is the step most likely to fail, so it is set apart rather than
+   listed as just another line of the itinerary. */
+.leg-change {
+  padding: 0.5rem 0.7rem;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  border-left: 3px solid var(--accent);
+}
+.leg-change-icon { color: var(--accent); font-weight: 700; flex: none; }
+
+/* -- plan subsections -------------------------------------------------- */
+
+.subsections { margin-top: 2.5rem; display: grid; gap: 0.75rem; }
+.subsection {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.subsection > summary {
+  font-weight: 700;
+  cursor: pointer;
+  min-height: var(--tap);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  list-style: none;
+}
+.subsection > summary::-webkit-details-marker { display: none; }
+.subsection > summary:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
+.subsection > summary > span[aria-hidden] {
+  color: var(--accent);
+  display: inline-block;
+  transition: transform 120ms ease;
+}
+.subsection[open] > summary > span[aria-hidden] { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) {
+  .subsection > summary > span[aria-hidden] { transition: none; }
+}
+.subsection-body { padding: 0 1rem 1.25rem; border-top: 1px solid var(--rule); padding-top: 1rem; }
+/* These panels render their own <h2>; inside a subsection it is a sub-heading. */
+.subsection-body h2 { font-size: 1.125rem; }

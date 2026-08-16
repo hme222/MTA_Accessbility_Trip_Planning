@@ -282,6 +282,109 @@ def plan(
     )
 
 
+class TransferLeg(BaseModel):
+    route: str
+    headsign: str
+    depart: str
+    arrive: str
+
+
+class TransferOption(BaseModel):
+    depart: str
+    arrive: str
+    total_minutes: int
+    wait_minutes: int
+    transfer_station: str
+    transfer_name: str
+    cross_complex: bool
+    leg_1: TransferLeg
+    leg_2: TransferLeg
+    severity: str
+    advisories: List[str] = []
+
+
+class TransferResponse(BaseModel):
+    origin: Station
+    destination: Station
+    date: str
+    after: str
+    count: int
+    options: List[TransferOption]
+
+
+@app.get("/plan/transfers", response_model=TransferResponse)
+def plan_transfers(
+    origin: str = Query(...),
+    destination: str = Query(...),
+    date: Optional[str] = Query(None, pattern=r"^\d{8}$"),
+    after: Optional[str] = Query(None, pattern=r"^\d{2}:\d{2}(:\d{2})?$"),
+    limit: int = Query(8, ge=1, le=25),
+):
+    """Journeys with one change of train.
+
+    Kept separate from `/plan` because it costs seconds rather than
+    milliseconds: the client shows direct trips immediately and fills these in
+    as they arrive.
+
+    This matters more than in an ordinary planner. Only 140 of 496 stations are
+    fully accessible, so a large share of usable journeys require a change --
+    and a change is exactly where accessibility breaks, since it needs four
+    working platforms instead of two.
+    """
+    _require_feed()
+    start = _station_or_404(origin)
+    end = _station_or_404(destination)
+
+    now = _now()
+    date = date or now.strftime("%Y%m%d")
+    after = after or now.strftime("%H:%M:%S")
+    if len(after) == 5:
+        after += ":00"
+
+    frame = ga.plan_trip_with_transfer(
+        cache.gtfs_dir, origin, destination, date=date, after=after, limit=limit
+    )
+
+    options = []
+    if not frame.empty:
+        for row in frame.to_dict("records"):
+            total = (ga.gtfs_seconds(row["arrive"]) - ga.gtfs_seconds(row["depart"])) // 60
+            options.append(
+                TransferOption(
+                    depart=row["depart"],
+                    arrive=row["arrive"],
+                    total_minutes=max(0, int(total)),
+                    wait_minutes=int(row["wait_seconds"]) // 60,
+                    transfer_station=row["transfer_station"],
+                    transfer_name=row["transfer_name"],
+                    cross_complex=bool(row["cross_complex"]),
+                    leg_1=TransferLeg(
+                        route=row["route_1"],
+                        headsign=row["headsign_1"],
+                        depart=row["depart"],
+                        arrive=row["leg1_arrive"],
+                    ),
+                    leg_2=TransferLeg(
+                        route=row["route_2"],
+                        headsign=row["headsign_2"],
+                        depart=row["leg2_depart"],
+                        arrive=row["arrive"],
+                    ),
+                    severity=row["severity"],
+                    advisories=[a for a in str(row["advisories"]).split("; ") if a],
+                )
+            )
+
+    return TransferResponse(
+        origin=Station(**start),
+        destination=Station(**end),
+        date=date,
+        after=after,
+        count=len(options),
+        options=options,
+    )
+
+
 @app.get("/bus/alerts")
 def bus_alerts(
     route: Optional[str] = Query(None, description="Filter to one route, e.g. M14A+"),

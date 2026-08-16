@@ -11,7 +11,14 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { Outage, OutageResponse, PlanResponse, Severity, Station } from './api';
+import type {
+  Outage,
+  OutageResponse,
+  PlanResponse,
+  Severity,
+  Station,
+  TransferResponse,
+} from './api';
 import {
   accessSummary,
   ApiError,
@@ -19,6 +26,7 @@ import {
   fetchHealth,
   fetchOutages,
   fetchPlan,
+  fetchTransfers,
   fromInputValues,
   toInputValues,
   todayInNewYork,
@@ -30,6 +38,7 @@ import {
   ReadAloud,
   StationCombobox,
   Switch,
+  TransferCard,
   TripCard,
   spokenPlan,
 } from './components';
@@ -41,7 +50,7 @@ import { TripMap } from './TripMap';
 import { useStations } from './useStations';
 import { useAutoRefresh, useAutoRefreshSetting } from './useAutoRefresh';
 
-type Panel = 'plan' | 'outages' | 'buses' | 'report';
+type Panel = 'plan' | 'report';
 
 export default function App() {
   const [panel, setPanel] = useState<Panel>('plan');
@@ -76,26 +85,6 @@ export default function App() {
 
         <div
           role="tabpanel"
-          id="panel-outages"
-          aria-labelledby="tab-outages"
-          tabIndex={-1}
-          hidden={panel !== 'outages'}
-        >
-          <ErrorBoundary>{panel === 'outages' ? <Outages /> : null}</ErrorBoundary>
-        </div>
-
-        <div
-          role="tabpanel"
-          id="panel-buses"
-          aria-labelledby="tab-buses"
-          tabIndex={-1}
-          hidden={panel !== 'buses'}
-        >
-          <ErrorBoundary>{panel === 'buses' ? <Buses /> : null}</ErrorBoundary>
-        </div>
-
-        <div
-          role="tabpanel"
           id="panel-report"
           aria-labelledby="tab-report"
           tabIndex={-1}
@@ -103,7 +92,6 @@ export default function App() {
         >
           <ErrorBoundary>{panel === 'report' ? <ReportPanel /> : null}</ErrorBoundary>
         </div>
-        <About />
       </main>
 
       <footer>
@@ -112,6 +100,10 @@ export default function App() {
           Accessibility reflects the feed at build time — outages change hourly.
         </div>
       </footer>
+
+      {/* Below the footer: this is background on the project, not part of
+          using it. */}
+      <About />
     </div>
   );
 }
@@ -160,8 +152,6 @@ function Masthead() {
 function Tabs({ panel, onChange }: { panel: Panel; onChange: (next: Panel) => void }) {
   const tabs: { key: Panel; label: string }[] = [
     { key: 'plan', label: 'Plan a trip' },
-    { key: 'outages', label: 'Elevators' },
-    { key: 'buses', label: 'Buses' },
     { key: 'report', label: 'Report a problem' },
   ];
 
@@ -429,13 +419,93 @@ function Planner() {
         </div>
       </form>
 
+      {origin && destination ? <TripMap origin={origin} destination={destination} /> : null}
+
       {searchError ? <ErrorNotice message={searchError} onRetry={search} /> : null}
       {searching ? <Loading label="Finding trips…" /> : null}
 
       {plan && !searching ? (
         <Results plan={plan} stepFreeOnly={stepFreeOnly} headingRef={resultsRef} />
       ) : null}
+
+      {plan && !searching ? (
+        <Transfers origin={plan.origin.stop_id} destination={plan.destination.stop_id} when={when} />
+      ) : null}
+
+      {/* Elevator and bus status belong with trip planning rather than off in
+          their own tabs: they are what a rider checks about the trip they are
+          about to take. Collapsed so they do not bury the planner. */}
+      <section className="subsections" aria-label="Live service information">
+        <details className="subsection">
+          <summary><span aria-hidden="true">▸</span> Elevator &amp; escalator outages</summary>
+          <div className="subsection-body">
+            <ErrorBoundary><Outages /></ErrorBoundary>
+          </div>
+        </details>
+
+        <details className="subsection">
+          <summary><span aria-hidden="true">▸</span> Bus alerts — every MTA bus is accessible</summary>
+          <div className="subsection-body">
+            <ErrorBoundary><Buses /></ErrorBoundary>
+          </div>
+        </details>
+      </section>
     </>
+  );
+}
+
+/**
+ * Journeys with one change of train.
+ *
+ * Fetched separately from the direct results because it costs seconds rather
+ * than milliseconds. It matters disproportionately here: with only 140 of 496
+ * stations fully accessible, many usable journeys require a change — and a
+ * change is exactly where accessibility breaks, needing four working platforms
+ * instead of two.
+ */
+function Transfers({
+  origin,
+  destination,
+  when,
+}: {
+  origin: string;
+  destination: string;
+  when: { date: string; time: string };
+}) {
+  const [data, setData] = useState<TransferResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setData(null);
+    const { date, after } = fromInputValues(when.date, when.time);
+    fetchTransfers(origin, destination, { date, after, limit: 6 }, controller.signal)
+      .then(setData)
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+    return () => controller.abort();
+  }, [origin, destination, when.date, when.time]);
+
+  if (loading) return <Loading label="Looking for journeys with one change…" />;
+  if (!data || data.count === 0) return null;
+
+  return (
+    <section className="results" aria-labelledby="transfers-heading">
+      <div className="results-head">
+        <h2 id="transfers-heading">
+          {data.count} journey{data.count === 1 ? '' : 's'} with one change
+        </h2>
+      </div>
+      <ul className="trip-list">
+        {data.options.map((option) => (
+          <TransferCard
+            key={`${option.leg_1.route}-${option.leg_2.route}-${option.transfer_station}-${option.depart}`}
+            option={option}
+          />
+        ))}
+      </ul>
+    </section>
   );
 }
 

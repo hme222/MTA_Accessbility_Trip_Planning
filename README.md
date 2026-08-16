@@ -200,6 +200,7 @@ Interactive docs at `/docs`.
 | `GET /stations/{stop_id}` | One station |
 | `GET /stations/{stop_id}/alternatives` | Nearby accessible stations, for when this one is not |
 | `GET /plan` | `?origin=&destination=` plus optional `date`, `after`, `limit` |
+| `GET /plan/transfers` | Journeys with one change of train |
 | `GET /outages` | Live equipment outages. `?blocking_only=true` |
 | `GET /bus/alerts` | Live bus service alerts. `?route=` |
 
@@ -263,6 +264,22 @@ Accessibility is a requirement here, not a feature:
 | **Report a problem** | Composes a structured report for the rider to file. It does **not** submit anywhere, and says so |
 
 Two features worth calling out:
+
+**Transfers.** One change of train, which matters more here than in an
+ordinary planner: with only 140 of 496 stations fully accessible, a large share
+of usable journeys require a change — and a change is where accessibility
+breaks, since it needs four working platforms instead of two.
+
+Origin and destination expand to their whole *station complex* first. GTFS gives
+14 St-Union Sq three parent stations (`L03`, `R20`, `635`) but nobody arranges
+to meet at "R20", and planning to one alone discards every route arriving on a
+different platform of the same station.
+
+What the feed cannot say: GTFS does not record whether the connection *inside* a
+station is step-free. For a change within one complex, both platforms being
+accessible is treated as sufficient — an inference, not a fact. For a walk
+between two differently-named complexes it is not even that, so those carry an
+explicit "verify before relying on it" advisory.
 
 **Accessible alternatives.** When a chosen station is not accessible, the app
 offers nearby ones that are, each a single press to swap in. Suggestions prefer

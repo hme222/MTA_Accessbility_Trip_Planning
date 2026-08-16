@@ -11,7 +11,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { speak, speechSupported, stop as stopSpeech } from './speech';
 
-import type { Alternative, Severity, Station, TripOption } from './api';
+import type { Alternative, Severity, Station, TransferOption, TripOption } from './api';
 import {
   accessLevel,
   accessSummary,
@@ -489,6 +489,80 @@ export function TripCard({ trip, destination }: { trip: TripOption; destination:
       {trip.advisories.length > 0 ? (
         <ul className="advisories" aria-hidden="true">
           {trip.advisories.map((advisory) => (
+            <li key={advisory}>{capitalize(advisory)}</li>
+          ))}
+        </ul>
+      ) : null}
+    </li>
+  );
+}
+
+// -- transfer journeys ----------------------------------------------------
+
+/**
+ * A two-leg journey.
+ *
+ * A change of train needs four working platforms instead of two — board,
+ * alight, board again, alight — so the transfer point is given as much
+ * prominence as the endpoints. It is the most likely thing to break, and the
+ * thing a rider is least able to discover in advance.
+ */
+export function TransferCard({ option }: { option: TransferOption }) {
+  const spoken = [
+    `${option.leg_1.route} train toward ${option.leg_1.headsign}, departing ${spokenTime(option.depart)}`,
+    `change at ${option.transfer_name}, waiting ${option.wait_minutes} minute${option.wait_minutes === 1 ? '' : 's'}`,
+    `then the ${option.leg_2.route} train toward ${option.leg_2.headsign}, arriving ${spokenTime(option.arrive)}`,
+    `${option.total_minutes} minutes total`,
+    severitySpoken[option.severity],
+    ...option.advisories,
+  ].join('. ');
+
+  return (
+    <li className={`trip trip-${option.severity}`}>
+      <span className="sr-only">{spoken}</span>
+
+      <div className="trip-top" aria-hidden="true">
+        <span className="trip-times">
+          {formatTime(option.depart)}
+          <span className="trip-arrow">→</span>
+          {formatTime(option.arrive)}
+        </span>
+        <span className="trip-dur">
+          {option.total_minutes} min · 1 change
+        </span>
+      </div>
+
+      {/* The two legs, with the change between them given its own row. */}
+      <ol className="legs" aria-hidden="true">
+        <li>
+          <RouteBullets routes={[option.leg_1.route]} />
+          <span className="leg-text">
+            to {option.leg_1.headsign}
+            <span className="leg-time"> · arrives {formatTime(option.leg_1.arrive)}</span>
+          </span>
+        </li>
+        <li className="leg-change">
+          <span className="leg-change-icon">⇄</span>
+          <span className="leg-text">
+            Change at <strong>{option.transfer_name}</strong>
+            <span className="leg-time"> · {option.wait_minutes} min wait</span>
+            {option.cross_complex ? <span className="leg-walk"> · involves a walk</span> : null}
+          </span>
+        </li>
+        <li>
+          <RouteBullets routes={[option.leg_2.route]} />
+          <span className="leg-text">
+            to {option.leg_2.headsign}
+            <span className="leg-time"> · departs {formatTime(option.leg_2.depart)}</span>
+          </span>
+        </li>
+      </ol>
+
+      <SeverityChip severity={option.severity} />
+
+      {option.advisories.length > 0 ? (
+        <ul className="advisories" aria-hidden="true">
+          {option.advisories.map((advisory) => (
             <li key={advisory}>{capitalize(advisory)}</li>
           ))}
         </ul>
