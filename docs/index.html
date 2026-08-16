@@ -28,20 +28,20 @@
   --panel-text: #FFFFFF;
   --surface:    #FFFFFF;
   --rule:       #D5D9DE;
-  --rule-firm:  #9BA3AD;
+  --rule-firm:  #848B93;
   --text:       #0B0D10;
-  --text-soft:  #545C67;
+  --text-soft:  #4A515B;
 
   --accent:     #0039A6;   /* A / C / E blue */
   --accent-ink: #FFFFFF;
 
   /* Semantic colors are the system's own line colors, adjusted only where
      text contrast demands it. Never used as decoration. */
-  --go:      #00722F;
+  --go:      #005D27;
   --go-bg:   #E4F3E9;
-  --warn:    #7A5300;
+  --warn:    #6B4900;
   --warn-bg: #FDF3D9;
-  --stop:    #B4271F;
+  --stop:    #95201A;
   --stop-bg: #FBE7E5;
 
   --measure: 68ch;
@@ -57,9 +57,9 @@
     --paper:     #0B0D10;
     --surface:   #14181D;
     --rule:      #2A3038;
-    --rule-firm: #49525E;
+    --rule-firm: #646C76;
     --text:      #EDEFF2;
-    --text-soft: #A2ABB6;
+    --text-soft: #A3ACB7;
     --accent:     #7FA9FF;
     --accent-ink: #0B0D10;
     --go:      #63D392;
@@ -76,9 +76,9 @@
   --paper:     #0B0D10;
   --surface:   #14181D;
   --rule:      #2A3038;
-  --rule-firm: #49525E;
+  --rule-firm: #646C76;
   --text:      #EDEFF2;
-  --text-soft: #A2ABB6;
+  --text-soft: #A3ACB7;
   --accent:     #7FA9FF;
   --accent-ink: #0B0D10;
   --go:      #63D392;
@@ -102,6 +102,10 @@ html {
   font-size: 100%;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  /* Focus Not Obscured (WCAG 2.2, 2.4.11): keeps whatever the browser scrolls
+     to — including the element receiving focus on Tab — clear of the sticky
+     bar, rather than tucked underneath it where it cannot be seen. */
+  scroll-padding-top: 4.5rem;
 }
 
 body {
@@ -395,6 +399,58 @@ td:first-child { white-space: nowrap; }
 }
 .scope li strong { color: var(--text); font-weight: 600; }
 
+/* -- case study ----------------------------------------------------- */
+
+/*
+ * The decision log is the substance of the case study, so it gets the
+ * structure: each entry is a tension and the call made on it. Paired rather
+ * than numbered, because these were simultaneous trade-offs, not a sequence.
+ */
+.decisions { margin-top: 2.5rem; display: grid; gap: 0; }
+.decision {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1.5rem 2.5rem;
+  padding: 1.75rem 0;
+  border-top: 1px solid var(--rule);
+}
+.decision:last-child { border-bottom: 1px solid var(--rule); }
+.decision h3 { grid-column: 1 / -1; margin-bottom: -0.5rem; }
+.decision .label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: var(--text-soft);
+  display: block;
+  margin-bottom: 0.4rem;
+}
+.decision p { font-size: 0.9375rem; }
+.decision .call p { color: var(--text); }
+.decision .tension p { color: var(--text-soft); }
+.decision .call .label { color: var(--accent); }
+
+@media (max-width: 40rem) {
+  .decision { grid-template-columns: 1fr; gap: 1.25rem; }
+  .decision h3 { margin-bottom: 0; }
+}
+
+.outcome {
+  margin-top: 2.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 1.5rem;
+  padding: 1.75rem;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+}
+.outcome .num {
+  font-size: 1.75rem; font-weight: 700; letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.outcome .cap { margin-top: 0.4rem; font-size: 0.8125rem; color: var(--text-soft); line-height: 1.4; }
+
 /* -- callout -------------------------------------------------------- */
 
 .callout {
@@ -456,6 +512,7 @@ footer p { max-width: 60ch; }
       <a href="#problem">Problem</a>
       <a href="#how">How it works</a>
       <a href="#scope">Scope</a>
+      <a href="#case-study">Case study</a>
       <!-- Canonical toggle-button pattern: the name stays fixed and
            aria-pressed carries the state. Changing the label *and* the pressed
            state announces a contradiction ("Light theme, pressed"). -->
@@ -766,7 +823,154 @@ python3 gtfs_accessibility.py          <span class="c">→ ~/Downloads/gtfs_acce
 uvicorn api.main:app --host 0.0.0.0 --port 8000
 
 <span class="c"># Run the app</span>
-cd mobile &amp;&amp; npx expo start</code></pre>
+cd web &amp;&amp; npm run dev</code></pre>
+  </div>
+</section>
+
+<section id="case-study" aria-labelledby="case-h">
+  <div class="wrap">
+    <p class="eyebrow">Case study</p>
+    <h2 id="case-h">Every interesting choice here was a trade-off, not a feature.</h2>
+    <p class="section-intro measure">
+      The engineering was mostly joins and lookups. What took the time was deciding
+      what the data was allowed to say — and, more often, what it was not allowed to
+      decide on a rider's behalf.
+    </p>
+
+    <div class="decisions">
+      <div class="decision">
+        <h3>Where to put a value that means two different things</h3>
+        <div class="tension">
+          <span class="label">The tension</span>
+          <p>
+            GTFS and the MTA both use <code class="mono">2</code>, and they disagree.
+            In GTFS it means boarding is impossible. To the MTA it means partially
+            accessible. One column cannot hold both.
+          </p>
+        </div>
+        <div class="call">
+          <span class="label">The call</span>
+          <p>
+            Write both, separately. Consumers read the GTFS column and get correct
+            GTFS semantics; the MTA's value is preserved verbatim in a non-standard
+            column that spec-compliant readers ignore. Collapsing them would have told
+            every trip planner that a usable station was unusable.
+          </p>
+        </div>
+      </div>
+
+      <div class="decision">
+        <h3>Whether to express something the spec has no word for</h3>
+        <div class="tension">
+          <span class="label">The tension</span>
+          <p>
+            GTFS has no value for "accessible in one direction." The obvious move is to
+            invent one, which no other consumer would understand.
+          </p>
+        </div>
+        <div class="call">
+          <span class="label">The call</span>
+          <p>
+            Don't extend the spec — use what it already has. The feed carries directional
+            child platforms, so each one takes the rating for its own direction. Partial
+            accessibility falls out of standard GTFS, and any router doing an ordinary
+            stop lookup gets it right without knowing this project exists.
+          </p>
+        </div>
+      </div>
+
+      <div class="decision">
+        <h3>Whether to hide trips a rider probably cannot take</h3>
+        <div class="tension">
+          <span class="label">The tension</span>
+          <p>
+            Filtering to accessible trips only is the obvious product decision, and it is
+            what a strict reading of the data supports.
+          </p>
+        </div>
+        <div class="call">
+          <span class="label">The call</span>
+          <p>
+            Warn, never block. Riders have workarounds the feed cannot see — a companion,
+            a transfer, a bus leg, a different exit. Times Sq to Union Sq returns 10,578
+            trips by default and zero under strict filtering, and "no service" is a worse
+            answer than "here are your options, with caveats."
+          </p>
+        </div>
+      </div>
+
+      <div class="decision">
+        <h3>What to do when the data cannot answer the question</h3>
+        <div class="tension">
+          <span class="label">The tension</span>
+          <p>
+            The elevator feed does not say which direction of travel an elevator serves.
+            Guessing would produce a more precise-looking answer most of the time.
+          </p>
+        </div>
+        <div class="call">
+          <span class="label">The call</span>
+          <p>
+            Be conservative and say so. A blocking outage takes out both directions at that
+            station. It overstates the damage, but the failure mode is a rider taking a
+            longer route — not a rider stranded on a platform they cannot leave.
+          </p>
+        </div>
+      </div>
+
+      <div class="decision">
+        <h3>How much to trust a name</h3>
+        <div class="tension">
+          <span class="label">The tension</span>
+          <p>
+            Three datasets, three naming conventions, and station complexes that appear
+            under several names at once. Fuzzy matching would have joined them quickly.
+          </p>
+        </div>
+        <div class="call">
+          <span class="label">The call</span>
+          <p>
+            Join on published identifiers or do not ship. Both sources key to GTFS parent
+            stations exactly — 496 of 496 for the ADA baseline, 193 of 193 for equipment.
+            A fuzzy match that is 98% right is a station that silently lies to someone.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:3rem">What the data turned out to say</h3>
+    <div class="outcome">
+      <div>
+        <div class="num">28%</div>
+        <div class="cap">Of stations are fully ADA accessible — 140 of 496</div>
+      </div>
+      <div>
+        <div class="num">8</div>
+        <div class="cap">Platforms reachable but not returnable</div>
+      </div>
+      <div>
+        <div class="num">22,937</div>
+        <div class="cap">Trips carrying a return-trip hazard, from those 8 platforms alone</div>
+      </div>
+      <div>
+        <div class="num">26</div>
+        <div class="cap">Stations below their published baseline right now, from live outages</div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <p>
+        The finding that justified the project: a hazard affecting roughly a third of all
+        scheduled trips traces back to just eight platforms. It is invisible to any model
+        that treats accessibility as one flag per station, and it disappears the moment
+        you resolve to the platform instead.
+      </p>
+      <p class="quiet">
+        The honest limitation: this plans single-train trips only. Because the accessible
+        network is sparse, many real journeys need a transfer — which makes transfer
+        support the next thing that matters, not a nice-to-have.
+      </p>
+    </div>
   </div>
 </section>
 

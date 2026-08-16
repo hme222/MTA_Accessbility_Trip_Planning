@@ -18,19 +18,19 @@
   --surface:    #FFFFFF;
   --surface-2:  #EEF0F3;
   --rule:       #D5D9DE;
-  --rule-firm:  #9BA3AD;
+  --rule-firm:  #848B93;
   --text:       #0B0D10;
-  --text-soft:  #545C67;
+  --text-soft:  #4A515B;
 
   --accent:     #0039A6;   /* A / C / E blue */
   --accent-ink: #FFFFFF;
   --accent-bg:  #E7EDF9;
 
-  --go:      #00722F;
+  --go:      #005D27;
   --go-bg:   #E4F3E9;
-  --warn:    #7A5300;
+  --warn:    #6B4900;
   --warn-bg: #FDF3D9;
-  --stop:    #B4271F;
+  --stop:    #95201A;
   --stop-bg: #FBE7E5;
 
   --sans: "Helvetica Neue", Helvetica, Arial, "Liberation Sans", sans-serif;
@@ -69,9 +69,9 @@ html {
     --surface:   #14181D;
     --surface-2: #1C2128;
     --rule:      #2A3038;
-    --rule-firm: #49525E;
+    --rule-firm: #646C76;
     --text:      #EDEFF2;
-    --text-soft: #A2ABB6;
+    --text-soft: #A3ACB7;
     --accent:     #7FA9FF;
     --accent-ink: #0B0D10;
     --accent-bg:  #16233A;
@@ -90,9 +90,9 @@ html {
   --surface:   #14181D;
   --surface-2: #1C2128;
   --rule:      #2A3038;
-  --rule-firm: #49525E;
+  --rule-firm: #646C76;
   --text:      #EDEFF2;
-  --text-soft: #A2ABB6;
+  --text-soft: #A3ACB7;
   --accent:     #7FA9FF;
   --accent-ink: #0B0D10;
   --accent-bg:  #16233A;
