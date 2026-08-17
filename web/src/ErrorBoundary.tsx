@@ -33,7 +33,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (!error) return this.props.children;
 
     return (
-      <main id="main" style={{ padding: '2rem 1rem', maxWidth: '60ch', margin: '0 auto' }}>
+      <div style={{ padding: '2rem 1rem', maxWidth: '60ch', margin: '0 auto' }}>
         <div className="notice notice-stop" role="alert">
           <h2>
             <span aria-hidden="true">✕</span> The app hit an unexpected error
@@ -51,7 +51,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <code>{error.message}</code>
           </p>
         </div>
-      </main>
+      </div>
     );
   }
 }

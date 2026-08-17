@@ -30,6 +30,21 @@ const checks = [
   [demoBundle.includes('detectable_warning'), 'demo bundle includes detailed curb-ramp data'],
   [appBundle.includes('Selected locations'), 'app bundle includes the selection-triggered map'],
   [appBundle.includes('Check equipment affecting subway accessibility'), 'app bundle includes improved outage disclosures'],
+  [
+    demoBundle.includes('data.ny.gov/resource/39hk-dx4f.json') &&
+      demoBundle.includes('nyct%2Fnyct_ene.json') &&
+      demoBundle.includes('camsys%2Fbus-alerts.json'),
+    'demo requests official MTA station, equipment, and bus-alert sources',
+  ],
+  [
+    demoBundle.includes('data.cityofnewyork.us/resource/ufzp-rrqu.json'),
+    'curb-ramp details request NYC Open Data',
+  ],
+  [
+    appBundle.includes('Demonstration data session') &&
+      appBundle.includes('This demonstration is not connected to the MTA'),
+    'app distinguishes opening-time source refresh from the unlinked report demonstration',
+  ],
 ];
 
 const failed = checks.filter(([pass]) => !pass);

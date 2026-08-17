@@ -68,13 +68,14 @@ export function TripMap({ origin, destination }: { origin?: Station; destination
       // arrow keys away from the page.
       keyboard: false,
       scrollWheelZoom: false,
-      attributionControl: true,
+      zoomControl: false,
+      attributionControl: false,
     });
     mapRef.current = map;
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
-      attribution: '&copy; OpenStreetMap contributors',
+      attribution: '',
     }).addTo(map);
 
     const points: L.LatLng[] = [];
@@ -116,6 +117,12 @@ export function TripMap({ origin, destination }: { origin?: Station; destination
       <div className="map-frame" role="img" aria-label={summary}>
         <div ref={nodeRef} className="map-canvas" aria-hidden="true" />
       </div>
+      <p className="map-attribution">
+        Map tiles ©{' '}
+        <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
+          OpenStreetMap contributors
+        </a>
+      </p>
 
       {/* The map's content, as text. Not a fallback — it is always present. */}
       <ul className="map-legend">

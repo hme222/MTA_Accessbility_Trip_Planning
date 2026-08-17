@@ -70,6 +70,20 @@ export interface OutageResponse {
   outages: Outage[];
 }
 
+export interface PublicDataSession {
+  /** Unix milliseconds captured once when this browser document opened. */
+  opened_at: number;
+  /** Unix milliseconds after the opening refresh attempts finished. */
+  refreshed_at: number;
+  sources: {
+    mta_stations: boolean;
+    mta_equipment: boolean;
+    mta_bus_alerts: boolean;
+    nyc_curb_ramps: boolean;
+  };
+  errors: string[];
+}
+
 /**
  * A configured backend selects live mode. Without one, the static Pages build
  * uses the bounded demonstration adapter instead of issuing doomed `/api`
@@ -160,6 +174,10 @@ export function fetchPlan(
 
 export function fetchOutages(signal?: AbortSignal): Promise<OutageResponse> {
   return get<OutageResponse>('/outages', {}, signal);
+}
+
+export function fetchPublicDataSession(signal?: AbortSignal): Promise<PublicDataSession> {
+  return get<PublicDataSession>('/session', {}, signal);
 }
 
 export interface Alternative {

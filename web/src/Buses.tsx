@@ -90,7 +90,9 @@ export function Buses() {
             onChange={setAutoRefresh}
           />
         ) : (
-          <p className="snapshot-static">Snapshot alerts do not refresh.</p>
+          <p className="snapshot-static">
+            MTA bus alerts refreshed when this app opened. Reload the page to request them again.
+          </p>
         )}
         <p className="refresh-stamp" role="status">
           {alerts.length} of {data.total} alert{data.total === 1 ? '' : 's'}

@@ -11,7 +11,8 @@
  * NOT submit anywhere. Pretending otherwise would be the worst possible bug in
  * this particular app: someone reports a hazard, believes it is filed, and it
  * goes nowhere. So the form is explicit that it is not connected, shows exactly
- * what it produced, and links to the channels that do reach the MTA.
+ * what it produced, and explains the real-use handoff without pretending that
+ * connection exists in this demonstration.
  */
 import { useId, useRef, useState } from 'react';
 
@@ -34,25 +35,40 @@ export function Report({ stations }: { stations: Station[] }) {
   const [report, setReport] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [draftChanged, setDraftChanged] = useState(false);
 
   const detailsId = useId();
   const errorId = useId();
   const outputRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  const invalidateReport = () => {
+    setError(null);
+    if (!report) return;
+    setReport(null);
+    setCopied(false);
+    setDraftChanged(true);
+  };
 
   const compose = (event: React.FormEvent) => {
     event.preventDefault();
 
     if (!station || !problem) {
-      setError(
-        !station
-          ? 'Choose the station where the problem is.'
-          : 'Choose what kind of problem it is.',
-      );
+      const missing = [
+        !station ? 'Choose the station where the problem is.' : '',
+        !problem ? 'Choose what kind of problem it is.' : '',
+      ].filter(Boolean);
+      setError(missing.join(' '));
       setReport(null);
+      requestAnimationFrame(() => {
+        const selector = !station ? 'input[role="combobox"]' : 'input[type="radio"]';
+        formRef.current?.querySelector<HTMLInputElement>(selector)?.focus();
+      });
       return;
     }
 
     setError(null);
+    setDraftChanged(false);
     const chosen = PROBLEM_TYPES.find((p) => p.value === problem)?.label ?? problem;
     const now = new Date();
 
@@ -91,21 +107,25 @@ export function Report({ stations }: { stations: Station[] }) {
 
   return (
     <section aria-labelledby="report-heading">
-      <h2 id="report-heading">Report a problem</h2>
+      <h2 id="report-heading">Draft a problem report</h2>
 
       <div className="notice notice-plain" style={{ marginTop: '1rem' }}>
         <p>
-          <strong>This form does not send anything.</strong> It writes up your report so you can
-          file it through a channel that actually reaches the MTA — the links are below.
+          <strong>This demonstration is not connected to the MTA.</strong> In real use, this
+          section would open the MTA reporting flow with your details ready to submit. Here, it
+          only creates a report you can review and copy. Nothing is sent.
         </p>
       </div>
 
-      <form className="planner" onSubmit={compose} style={{ marginTop: '1.5rem' }}>
+      <form ref={formRef} className="planner" onSubmit={compose} style={{ marginTop: '1.5rem' }}>
         <StationCombobox
           label="Which station"
           stations={stations}
           value={station}
-          onChange={setStation}
+          onChange={(next) => {
+            invalidateReport();
+            setStation(next);
+          }}
         />
 
         <fieldset className="fieldset">
@@ -118,7 +138,10 @@ export function Report({ stations }: { stations: Station[] }) {
                   name="problem"
                   value={type.value}
                   checked={problem === type.value}
-                  onChange={(e) => setProblem(e.target.value)}
+                  onChange={(e) => {
+                    invalidateReport();
+                    setProblem(e.target.value);
+                  }}
                 />
                 <span>{type.label}</span>
               </label>
@@ -132,7 +155,10 @@ export function Report({ stations }: { stations: Station[] }) {
             id={detailsId}
             rows={4}
             value={details}
-            onChange={(e) => setDetails(e.target.value)}
+            onChange={(e) => {
+              invalidateReport();
+              setDetails(e.target.value);
+            }}
             placeholder="Which entrance, which platform, how long it has been like this…"
           />
         </div>
@@ -140,6 +166,12 @@ export function Report({ stations }: { stations: Station[] }) {
         {error ? (
           <p className="notice notice-stop" role="alert" id={errorId}>
             {error}
+          </p>
+        ) : null}
+
+        {draftChanged ? (
+          <p className="snapshot-static" role="status">
+            Report details changed. Write up the report again to update the draft.
           </p>
         ) : null}
 
@@ -163,24 +195,11 @@ export function Report({ stations }: { stations: Station[] }) {
             {copied ? 'Report copied to the clipboard.' : ''}
           </p>
 
-          <h3 style={{ marginTop: '1.5rem' }}>Where to send it</h3>
-          <ul className="send-list">
-            <li>
-              <a href="https://new.mta.info/customer-feedback" target="_blank" rel="noreferrer">
-                MTA customer feedback
-              </a>{' '}
-              — the official form, with an accessibility category.
-            </li>
-            <li>
-              <strong>Call or text 511</strong> — the New York State travel line, which routes
-              MTA accessibility complaints.
-            </li>
-            <li>
-              For an elevator or escalator that is out right now, check{' '}
-              <strong>Elevator &amp; escalator outages</strong> under Plan a trip first — if it is
-              already listed, the MTA knows.
-            </li>
-          </ul>
+          <h3 style={{ marginTop: '1.5rem' }}>What would happen in real use</h3>
+          <p>
+            The app would link directly to the MTA reporting flow and carry these details with
+            you. That connection is intentionally disabled in this demonstration.
+          </p>
         </div>
       ) : null}
     </section>

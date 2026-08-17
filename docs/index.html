@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Accessible Transit</title>
-<meta name="description" content="Directional subway accessibility for the NYC subway — resolving ADA accessibility down to the platform, with live elevator outages folded in.">
+<meta name="description" content="Directional NYC subway accessibility with official MTA outage records requested when the demonstration opens; trip schedules remain demo data.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%230039A6'/><text y='72' x='50' text-anchor='middle' font-size='64' fill='white' font-family='Helvetica,Arial'>♿</text></svg>">
 <style>
 /* ---------------------------------------------------------------------
@@ -138,6 +138,12 @@ a:focus-visible, button:focus-visible {
   outline-offset: 3px;
   border-radius: 2px;
 }
+.trap:focus-visible,
+.table-scroll:focus-visible,
+pre:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 4px;
+}
 
 .wrap {
   width: min(100% - var(--gutter) * 2, 1080px);
@@ -226,6 +232,16 @@ section[id] { scroll-margin-top: 4.5rem; }
   min-width: 2.75rem;
 }
 .theme-toggle:hover { background: rgba(255,255,255,0.12); }
+
+@media (max-width: 40rem) {
+  .masthead { position: static; }
+  .masthead .wrap { padding-block: 0.55rem; }
+  .masthead nav {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.85rem;
+  }
+}
 
 /* -- hero ----------------------------------------------------------- */
 
@@ -371,7 +387,7 @@ td:first-child { white-space: nowrap; }
 .sev .glyph { font-size: 1.125rem; font-weight: 700; line-height: 1.4; }
 .sev .name { font-weight: 700; }
 .sev .desc { color: var(--text); opacity: 0.85; font-size: 0.9375rem; margin-top: 0.2rem; }
-.sev .name code { font-family: var(--mono); font-size: 0.8125rem; opacity: 0.75; font-weight: 400; }
+.sev .name code { font-family: var(--mono); font-size: 0.8125rem; font-weight: 400; }
 .sev-go   { background: var(--go-bg);   border-left-color: var(--go);   color: var(--go); }
 .sev-warn { background: var(--warn-bg); border-left-color: var(--warn); color: var(--warn); }
 .sev-stop { background: var(--stop-bg); border-left-color: var(--stop); color: var(--stop); }
@@ -559,14 +575,14 @@ footer p { max-width: 60ch; }
     <p class="lede">
       The MTA publishes which stations are wheelchair accessible. It does not
       publish which <em>direction</em> you can leave from. This project resolves
-      ADA accessibility down to the individual platform, folds in live elevator
-      outages, and tells a rider the thing no other planner does: whether they
-      can get back.
+      ADA accessibility down to the individual platform and can incorporate MTA
+      elevator outage records. The public planner requests official outage records
+      when it opens; trip times and the stop set remain demonstration data.
     </p>
 
     <div class="hero-actions">
       <a class="hero-action" href="./app/">
-        Open the trip planner <span aria-hidden="true">→</span>
+        Open the demonstration planner <span aria-hidden="true">→</span>
       </a>
     </div>
 
@@ -584,8 +600,8 @@ footer p { max-width: 60ch; }
         <div class="cap">Of all trips carry a return-trip risk</div>
       </div>
       <div class="stat">
-        <div class="num">24</div>
-        <div class="cap">Stations downgraded in the source snapshot</div>
+        <div class="num">26</div>
+        <div class="cap">Stations below their published baseline in the August 16, 2026 snapshot</div>
       </div>
     </div>
   </div>
@@ -611,7 +627,7 @@ footer p { max-width: 60ch; }
       </p>
     </div>
 
-    <figure class="trap">
+    <figure class="trap" tabindex="0">
       <svg viewBox="0 0 720 250" role="img" aria-labelledby="trap-title trap-desc">
         <title id="trap-title">49 St, showing accessible uptown platform and inaccessible downtown platform</title>
         <desc id="trap-desc">
@@ -681,7 +697,7 @@ footer p { max-width: 60ch; }
       </div>
       <div class="step">
         <div>
-          <h3>Fold in live elevator outages</h3>
+          <h3>Apply MTA elevator outage records</h3>
           <p>
             The Elevator &amp; Escalator API supplies current and scheduled outages.
             Two rules keep it honest: an escalator outage never downgrades a station,
@@ -715,7 +731,12 @@ footer p { max-width: 60ch; }
       </div>
     </div>
 
-    <div class="table-scroll">
+    <div
+      class="table-scroll"
+      tabindex="0"
+      role="region"
+      aria-label="Comparison of GTFS and MTA accessibility values"
+    >
       <table>
         <caption>
           Accessibility is written twice, because the two conventions disagree on the value 2.
@@ -810,7 +831,7 @@ footer p { max-width: 60ch; }
         <h3>Built <span class="tag tag-done">Working</span></h3>
         <ul>
           <li><strong>Directional accessibility resolver</strong> — per-platform ADA accessibility across all 496 stations</li>
-          <li><strong>Live outage integration</strong> — elevator and escalator feeds, with blocking and degraded distinguished</li>
+          <li><strong>MTA outage integration</strong> — elevator and escalator feeds, with blocking and degraded distinguished</li>
           <li><strong>Return-trip risk detection</strong> — every trip annotated with the one-way traps along its route</li>
           <li><strong>Augmented GTFS export</strong> — a drop-in feed any standard router can consume</li>
           <li><strong>JSON API</strong> — FastAPI over an in-memory feed; trip queries in ~0.1s</li>
@@ -839,7 +860,7 @@ footer p { max-width: 60ch; }
       </div>
     </div>
 
-    <pre><code><span class="c"># Build the augmented feed</span>
+    <pre tabindex="0" role="region" aria-label="Project setup commands"><code><span class="c"># Build the augmented feed</span>
 python3 gtfs_accessibility.py          <span class="c">→ ~/Downloads/gtfs_accessible.zip</span>
 
 <span class="c"># Serve it</span>
@@ -977,7 +998,7 @@ cd web &amp;&amp; npm run dev</code></pre>
       </div>
       <div>
         <div class="num">26</div>
-        <div class="cap">Stations below their published baseline in the source snapshot</div>
+        <div class="cap">Stations below their published baseline in the August 16, 2026 snapshot</div>
       </div>
     </div>
 

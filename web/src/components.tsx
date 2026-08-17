@@ -318,11 +318,12 @@ export function StationCombobox({
                 aria-selected={index === active}
                 className="option"
                 onMouseEnter={() => setActive(index)}
-                // mousedown fires before the input's blur, so the click lands.
+                // Keep focus in the input until click commits the option. Click
+                // also supports synthesized activation from mobile screen readers.
                 onMouseDown={(event) => {
                   event.preventDefault();
-                  commit(station);
                 }}
+                onClick={() => commit(station)}
               >
                 <span className="option-name">{station.stop_name}</span>
                 <span className="option-meta">
@@ -356,6 +357,7 @@ export function StationCombobox({
  */
 export function EquipmentDetail({ station }: { station: Station }) {
   const [items, setItems] = useState<Equipment[]>([]);
+  const [loadFailed, setLoadFailed] = useState(false);
   const level = accessLevel(station);
 
   useEffect(() => {
@@ -364,13 +366,25 @@ export function EquipmentDetail({ station }: { station: Station }) {
       return;
     }
     const controller = new AbortController();
+    setLoadFailed(false);
     fetchEquipment(station.stop_id, controller.signal)
       .then(setItems)
-      .catch(() => setItems([]));
+      .catch((error) => {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) setLoadFailed(true);
+        setItems([]);
+      });
     return () => controller.abort();
   }, [station.stop_id, level]);
 
-  if (level === 'full' || items.length === 0) return null;
+  if (level === 'full') return null;
+  if (loadFailed) {
+    return (
+      <p className="eq-meta" role="status">
+        Equipment details could not load for {station.stop_name}. The station warning still applies.
+      </p>
+    );
+  }
+  if (items.length === 0) return null;
 
   const blocking = items.filter((i) => i.blocking);
   const other = items.filter((i) => !i.blocking);
@@ -437,7 +451,7 @@ export function Alternatives({
   onSwap: (stopId: string) => void;
 }) {
   const [items, setItems] = useState<Alternative[]>([]);
-  const [state, setState] = useState<'idle' | 'loading' | 'done'>('idle');
+  const [state, setState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
   const headingId = useId();
 
   const level = accessLevel(station);
@@ -453,13 +467,27 @@ export function Alternatives({
     // direction this one is missing.
     const direction = level === 'partial' ? (station.northbound ? 'S' : 'N') : undefined;
     fetchAlternatives(station.stop_id, { direction, limit: 3 }, controller.signal)
-      .then(setItems)
-      .catch(() => setItems([]))
-      .finally(() => setState('done'));
+      .then((next) => {
+        setItems(next);
+        setState('done');
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        setItems([]);
+        setState('error');
+      });
     return () => controller.abort();
   }, [station.stop_id, level, station.northbound]);
 
-  if (level === 'full' || state === 'loading' || items.length === 0) return null;
+  if (level === 'full' || state === 'loading') return null;
+  if (state === 'error') {
+    return (
+      <p className="alt-note" role="status">
+        Nearby accessible alternatives could not load. Your selected stop is unchanged.
+      </p>
+    );
+  }
+  if (items.length === 0) return null;
 
   const problem =
     level === 'none'
@@ -583,6 +611,11 @@ export function RampQuality({ stopId, stationName }: { stopId: string; stationNa
               meet the ADA standard
               {report.substandard > 0 ? <> · {report.substandard} fall short</> : null}
               {report.unverified > 0 ? <> · {report.unverified} unmeasured</> : null}.
+            </p>
+
+            <p className="eq-meta">
+              Showing up to 6 highest-concern records of {report.total} nearby. These records
+              are not a walking-path assessment.
             </p>
 
             <ul className="ramp-list">
@@ -839,14 +872,19 @@ export function TransferEquipment({
 }) {
   const [items, setItems] = useState<StationEquipment[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (!open || loaded) return;
     const controller = new AbortController();
+    setLoadFailed(false);
     fetchAllEquipment(stopId, controller.signal)
       .then(setItems)
-      .catch(() => setItems([]))
+      .catch((error) => {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) setLoadFailed(true);
+        setItems([]);
+      })
       .finally(() => setLoaded(true));
     return () => controller.abort();
   }, [open, loaded, stopId]);
@@ -873,6 +911,10 @@ export function TransferEquipment({
       <div className="transfer-equipment-body">
         {!loaded ? (
           <p className="eq-meta">Loading…</p>
+        ) : loadFailed ? (
+          <p className="eq-meta" role="status">
+            Equipment details could not load. The transfer information above is unchanged.
+          </p>
         ) : items.length === 0 ? (
           <p className="eq-meta">No elevator or escalator data published for this station.</p>
         ) : (

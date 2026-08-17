@@ -14,6 +14,7 @@ import type {
   Outage,
   OutageResponse,
   PlanResponse,
+  PublicDataSession,
   Severity,
   Station,
   TransferResponse,
@@ -26,6 +27,7 @@ import {
   fetchHealth,
   fetchOutages,
   fetchPlan,
+  fetchPublicDataSession,
   fetchTransfers,
   fromInputValues,
   toInputValues,
@@ -67,52 +69,61 @@ export default function App() {
       <Masthead />
 
       <main id="main" tabIndex={-1}>
-        <h1 className="sr-only">Accessible Transit — NYC subway trip planning</h1>
+        <PlannerHero />
 
-        <Tabs panel={panel} onChange={setPanel} />
-        <DataModeNotice />
+        <div className="app-content">
+          <Tabs panel={panel} onChange={setPanel} />
+          {panel !== 'report' ? <DataModeNotice /> : null}
 
-        {/* Both panels stay mounted so each tab's aria-controls always points
-            at an element that exists. Rendering only the active one leaves the
-            other tab referencing a missing id. */}
-        <div
-          role="tabpanel"
-          id="panel-plan"
-          aria-labelledby="tab-plan"
-          tabIndex={-1}
-          hidden={panel !== 'plan'}
-        >
-          <ErrorBoundary>
-            <Planner />
-          </ErrorBoundary>
-        </div>
+          {/* All panels stay mounted so each tab's aria-controls always points
+              at an element that exists. Rendering only the active one leaves the
+              other tab referencing a missing id. */}
+          <div
+            role="tabpanel"
+            id="panel-plan"
+            aria-labelledby="tab-plan"
+            tabIndex={-1}
+            hidden={panel !== 'plan'}
+          >
+            <ErrorBoundary>
+              <Planner />
+            </ErrorBoundary>
+          </div>
 
-        <div
-          role="tabpanel"
-          id="panel-planned"
-          aria-labelledby="tab-planned"
-          tabIndex={-1}
-          hidden={panel !== 'planned'}
-        >
-          <ErrorBoundary>{panel === 'planned' ? <Planned /> : null}</ErrorBoundary>
-        </div>
+          <div
+            role="tabpanel"
+            id="panel-planned"
+            aria-labelledby="tab-planned"
+            tabIndex={-1}
+            hidden={panel !== 'planned'}
+          >
+            <ErrorBoundary><Planned /></ErrorBoundary>
+          </div>
 
-        <div
-          role="tabpanel"
-          id="panel-report"
-          aria-labelledby="tab-report"
-          tabIndex={-1}
-          hidden={panel !== 'report'}
-        >
-          <ErrorBoundary>{panel === 'report' ? <ReportPanel /> : null}</ErrorBoundary>
+          <div
+            role="tabpanel"
+            id="panel-report"
+            aria-labelledby="tab-report"
+            tabIndex={-1}
+            hidden={panel !== 'report'}
+          >
+            <ErrorBoundary><ReportPanel /></ErrorBoundary>
+          </div>
         </div>
       </main>
 
       <footer>
-        <div>
-          {DATA_MODE === 'demo'
-            ? 'Demonstration data only — not current MTA service information and not for travel decisions.'
-            : "Built on the MTA's public GTFS, Subway Stations, and Elevator & Escalator feeds. Accessibility reflects the feed at build time — outages change hourly."}
+        <div className="footer-inner">
+          <p>
+            {DATA_MODE === 'demo'
+              ? 'MTA station, elevator, and bus-alert data refresh when this app opens. NYC Open Data supplies curb-ramp measurements. Trip schedules remain a demonstration.'
+              : "Built on the MTA's public GTFS, Subway Stations, and Elevator & Escalator feeds. Accessibility reflects the feed at build time — outages change hourly."}
+          </p>
+          <p>
+            <a href="https://github.com/hme222/MTA_Accessbility_Trip_Planning">
+              Source on GitHub
+            </a>
+          </p>
         </div>
       </footer>
     </div>
@@ -120,6 +131,28 @@ export default function App() {
 }
 
 // -- chrome ---------------------------------------------------------------
+
+function PlannerHero() {
+  return (
+    <section className="planner-hero" aria-labelledby="planner-title">
+      <div className="app-wrap">
+        <div className="planner-hero-bullets" aria-hidden="true">
+          <span className="hero-bullet hero-bullet-1">1</span>
+          <span className="hero-bullet hero-bullet-4">4</span>
+          <span className="hero-bullet hero-bullet-a">A</span>
+          <span className="hero-bullet hero-bullet-n">N</span>
+          <span className="hero-bullet hero-bullet-f">F</span>
+        </div>
+        <p className="planner-eyebrow">Accessible trip planner</p>
+        <h1 id="planner-title">Plan the whole trip.</h1>
+        <p className="planner-lede">
+          Choose a subway station or bus stop. Check the route, elevator status, and curb
+          ramps before you go—and before you need to get back.
+        </p>
+      </div>
+    </section>
+  );
+}
 
 function Masthead() {
   const [dark, setDark] = useState(() =>
@@ -144,8 +177,10 @@ function Masthead() {
           </svg>
           Accessible Transit
         </span>
-        <a className="masthead-back" href="../">
-          <span aria-hidden="true">←</span> Back to project page
+        <a className="masthead-back" href="../" aria-label="Back to project page">
+          <span aria-hidden="true">←</span>
+          <span className="back-full">Back to project page</span>
+          <span className="back-short" aria-hidden="true">Project</span>
         </a>
         <TextSize />
 
@@ -168,24 +203,98 @@ function Masthead() {
 const TABS: { key: Panel; label: string }[] = [
   { key: 'plan', label: 'Plan a trip' },
   { key: 'planned', label: 'Planned outages' },
-  { key: 'report', label: 'Report a problem' },
+  { key: 'report', label: 'Draft a report' },
 ];
 
 function DataModeNotice() {
   if (DATA_MODE !== 'demo') return null;
+  return <DemoDataModeNotice />;
+}
+
+function DemoDataModeNotice() {
+  const [session, setSession] = useState<PublicDataSession | null>(null);
+  const [refreshError, setRefreshError] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchPublicDataSession(controller.signal)
+      .then(setSession)
+      .catch((error) => {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) setRefreshError(true);
+      });
+    return () => controller.abort();
+  }, []);
+
+  const time = (value: number) =>
+    new Date(value).toLocaleTimeString('en-US', {
+      timeZone: 'America/New_York',
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZoneName: 'short',
+    });
+
+  const allRefreshed = session
+    ? Object.values(session.sources).every(Boolean)
+    : false;
 
   return (
     <aside className="data-mode" aria-labelledby="data-mode-title">
       <h2 id="data-mode-title">
-        <span aria-hidden="true">ⓘ</span> Demonstration snapshot
+        <span aria-hidden="true">ⓘ</span> Demonstration data session
       </h2>
-      <p>
-        This static version uses a small representative subway and bus dataset dated August 16,
-        2026. It is not current MTA service information and must not be used to make travel
-        decisions. Try <strong>Times Sq-42 St to 49 St</strong> for a return warning, or{' '}
-        <strong>W 42 St &amp; 7 Av to W 42 St &amp; 8 Av</strong> for a bus trip.
+      <p className="data-mode-critical">
+        <strong>Do not use this app for travel decisions.</strong> Trip times and the stop set
+        are demonstration data.
       </p>
-      <a href="../">Read the project notes and data limitations</a>
+      <p>
+        {session
+          ? `Opened ${time(session.opened_at)}. Requested MTA subway accessibility, outages, and bus alerts. NYC Open Data ramps load on demand.`
+          : 'Requesting MTA subway accessibility, outages, and bus alerts for this app opening…'}
+      </p>
+      {session && !allRefreshed ? (
+        <p className="source-warning" role="status">
+          Some official sources could not refresh. The affected sections use demonstration data
+          or show an unavailable message. {session.errors.join(' ')}
+        </p>
+      ) : refreshError ? (
+        <p className="source-warning" role="status">
+          Official sources could not refresh. Demonstration data remains available.
+        </p>
+      ) : null}
+      <details className="source-details">
+        <summary>More source details</summary>
+        <div className="source-details-body">
+          {session ? (
+            <p>
+              The opening-time requests finished at {time(session.refreshed_at)}.
+              {allRefreshed ? ' Official source requests completed.' : ''}
+            </p>
+          ) : null}
+          <ul className="source-list">
+            <li>
+              <strong>MTA:</strong> subway station accessibility, elevator and escalator outages,
+              planned outages, and bus service alerts.
+            </li>
+            <li>
+              <strong>NYC Open Data:</strong> pedestrian curb-ramp measurements, requested when
+              you expand the ramp details for a stop.
+            </li>
+          </ul>
+          <div className="source-links">
+            <a href="https://www.mta.info/developers" target="_blank" rel="noreferrer">
+              MTA developer sources
+            </a>
+            <a
+              href="https://data.cityofnewyork.us/Transportation/Pedestrian-Ramp-Locations/ufzp-rrqu"
+              target="_blank"
+              rel="noreferrer"
+            >
+              NYC Open Data curb ramps
+            </a>
+            <a href="../">Project notes and data limitations</a>
+          </div>
+        </div>
+      </details>
     </aside>
   );
 }
@@ -317,15 +426,23 @@ function Planner() {
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
+  const [queryChanged, setQueryChanged] = useState(false);
 
   const resultsRef = useRef<HTMLHeadingElement>(null);
   const requestId = useRef(0);
 
-  // Results belong to a specific pair; a changed selection invalidates them.
+  // Results belong to an exact query. Clear them when any input changes so
+  // stale trips cannot remain visible beside new criteria.
   useEffect(() => {
+    if (plan) {
+      setNotice('Trip details changed. Find trips again for updated results.');
+      setQueryChanged(true);
+    }
+    requestId.current += 1;
     setPlan(null);
     setSearchError(null);
-  }, [origin?.stop_id, destination?.stop_id]);
+    setSearching(false);
+  }, [origin?.stop_id, destination?.stop_id, when.date, when.time, stepFreeOnly]);
 
   // Focus only after React has committed the result heading. Scheduling from
   // inside the request handler can run before a first result exists in the DOM.
@@ -338,6 +455,7 @@ function Planner() {
     const id = ++requestId.current;
 
     setSearching(true);
+    setQueryChanged(false);
     setSearchError(null);
     const { date, after } = fromInputValues(when.date, when.time);
 
@@ -501,6 +619,10 @@ function Planner() {
         </div>
       </form>
 
+      {queryChanged ? (
+        <p className="snapshot-static">Trip details changed. Find trips again for updated results.</p>
+      ) : null}
+
       {searchError ? <ErrorNotice message={searchError} onRetry={search} /> : null}
       {searching ? <Loading label="Finding trips…" /> : null}
 
@@ -569,20 +691,32 @@ function Transfers({
 }) {
   const [data, setData] = useState<TransferResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
+    setLoadFailed(false);
     setData(null);
     const { date, after } = fromInputValues(when.date, when.time);
     fetchTransfers(origin, destination, { date, after, limit: 2 }, controller.signal)
       .then(setData)
-      .catch(() => setData(null))
+      .catch((error) => {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) setLoadFailed(true);
+        setData(null);
+      })
       .finally(() => setLoading(false));
     return () => controller.abort();
   }, [origin, destination, when.date, when.time]);
 
   if (loading) return <Loading label="Looking for journeys with one change…" />;
+  if (loadFailed) {
+    return (
+      <div className="notice notice-plain" role="status">
+        <p>One-change journeys could not load. Direct trip results are still shown.</p>
+      </div>
+    );
+  }
   if (!data || data.count === 0) return null;
 
   return (
@@ -747,7 +881,9 @@ function Outages() {
           </p>
         </div>
       ) : (
-        <p className="snapshot-static">Snapshot outage records do not refresh.</p>
+        <p className="snapshot-static">
+          MTA outage records refreshed when this app opened. Reload the page to request them again.
+        </p>
       )}
 
       {data.outages.length === 0 ? (
