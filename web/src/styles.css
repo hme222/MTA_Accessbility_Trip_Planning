@@ -274,33 +274,14 @@ main { flex: 1; }
   border-bottom-color: var(--accent);
 }
 
-/* Provenance is available without visually competing with the planning task.
-   The non-negotiable safety qualifier remains visible; detail is disclosed on
-   request using the browser's native, keyboard-accessible details pattern. */
+/* Project provenance is available on request without repeating the landing
+   page's framing before the planning task. Actual source-refresh failures stay
+   visible; normal-state detail uses the native, keyboard-accessible pattern. */
 .demo-context {
   margin: -0.5rem 0 1.5rem;
-  padding-block: 0.5rem;
+  padding-block: 0;
   border-block: 1px solid var(--rule);
 }
-.demo-qualifier {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.2rem 0.6rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  color: var(--text-soft);
-  font-size: 0.8125rem;
-}
-.demo-qualifier li {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
-  white-space: nowrap;
-}
-.demo-qualifier li + li::before { content: '·'; color: var(--text-soft); }
-.demo-qualifier strong { color: var(--text); }
 .snapshot-static { color: var(--text-soft); font-size: 0.8125rem; }
 .source-list {
   margin: 0.25rem 0;
@@ -311,7 +292,7 @@ main { flex: 1; }
 }
 .source-warning { color: var(--warn); font-weight: 700; }
 .source-links { display: flex; flex-wrap: wrap; gap: 0.45rem 1.25rem; }
-.source-details { margin-top: 0.1rem; }
+.source-details { margin-top: 0; }
 .source-details > summary {
   min-height: var(--tap);
   display: flex;
@@ -990,8 +971,6 @@ footer a { color: var(--panel-text); }
 
 @media (max-width: 26rem) {
   .app-content { padding-block: 1.5rem 3rem; }
-
-  .demo-qualifier li + li::before { content: none; }
 
   /* Stack the controls rather than letting the switch and buttons fight over
      a line they cannot share. */

@@ -30,7 +30,8 @@ _Last updated: 2026-08-17_
 | Rename the reporting task “Draft a report” and preserve its state across tabs | Makes the copy-only demonstration boundary predictable and supports interruption/resumption without implying submission | Senior accessibility and neuroinclusive reviews, 2026-08-17 |
 | Keep Leaflet controls out of the hidden map subtree and show attribution as ordinary content | Prevents keyboard focus from entering controls hidden from assistive technology while preserving required OpenStreetMap credit | Senior accessibility review, 2026-08-17 |
 | Clear results and report output when source inputs change | Prevents stale output from appearing to match newly edited criteria | Senior neuroinclusive review, 2026-08-17 |
-| Lead with the planning task and move provenance into a calm “About this demo” disclosure | Keeps the bounded-data limitation honest without making a portfolio prototype read like a system failure; the short “Not for travel” qualifier remains visible | Owner direction and senior accessibility UX review, 2026-08-17 |
+| Lead with the planning task and move provenance into a calm “About this demo” disclosure | Keeps the bounded-data limitation honest without making a portfolio prototype read like a system failure | Owner direction and senior accessibility UX review, 2026-08-17 |
+| Remove the repeated “Portfolio demo / Not for travel” qualifier from the planner | The landing page already establishes project context; a hackathon judge should reach the core interaction before reading caveats, while the disclosure preserves scope and sources | Owner direction and senior UX hackathon-judge review, 2026-08-17 |
 
 ## Open Questions
 - Which public host will eventually run the FastAPI service and generated feed?
@@ -47,7 +48,7 @@ _Last updated: 2026-08-17_
 Discovery approved → House Style Path B → Standard build → rendered verification → local health report.
 
 ## Current Status
-Opening-time public-data refresh and the accessibility review fix round are implemented and locally verified. The bounded planner requests MTA subway accessibility, current and planned elevator/escalator outages, and demo-route bus alerts once per page opening. Curb-ramp detail requests NYC Open Data when expanded. The planning task now leads; a compact qualifier remains visible while the opening time, source status, and detailed limitations sit in an “About this demo” disclosure. A source-refresh failure remains visible even while the disclosure is closed. Draft a report has a separate, unlinked demonstration notice.
+Opening-time public-data refresh and the accessibility review fix round are implemented and locally verified. The bounded planner requests MTA subway accessibility, current and planned elevator/escalator outages, and demo-route bus alerts once per page opening. Curb-ramp detail requests NYC Open Data when expanded. The planning task now leads; the opening time, source status, and detailed limitations sit in an “About this demo” disclosure rather than repeating the landing page's project warning. A source-refresh failure remains visible even while the disclosure is closed. Draft a report has a separate, unlinked demonstration notice.
 
 ## Visual Continuity Evidence
 - Desktop render: `/tmp/mta-app-desktop.png`
@@ -68,6 +69,7 @@ Opening-time public-data refresh and the accessibility review fix round are impl
 - Redesign accessibility evidence: axe-core reported zero WCAG 2.x A/AA violations in the closed and expanded disclosure states; keyboard order and focus indicators passed; no measured task target was under 44px; no horizontal overflow occurred; the selected map contained zero hidden focusable or nested interactive descendants.
 - House-style evidence after the minimal redesign: Path B final validator and tell checks pass with fewer distinct font-size declarations than the previous build.
 - Senior accessibility UX post-build review: PASS with zero Critical or Major findings; the duplicate live refresh-failure announcement was removed after review.
+- Hackathon-judge UX review: approved removal of the repeated qualifier with zero Critical or Major findings. Normal, expanded, keyboard, and simulated source-failure states were verified in `/tmp/mta-no-warning-320.png`, `/tmp/mta-no-warning-open-390.png`, and `/tmp/mta-no-warning-source-failure.png`.
 
 **Matrix check**
 - Applied dimensions: context and mechanics; agentic UX, trust, and accessibility; design systems and prototyping; research and strategy.
@@ -82,6 +84,5 @@ Opening-time public-data refresh and the accessibility review fix round are impl
 - Minor: several secondary async failure messages state what remains available but do not offer an inline retry.
 - Minor: Planned outages do not automatically filter to the selected From and To stops.
 - Minor: shared error notices use the generic heading “Something went wrong” instead of a task-specific heading.
-- Minor, intentional: the compact trip-demo qualifier is absent from Draft a report to honor the owner's request to keep trip snapshot messaging out of that task; the report instead begins with its own “not connected to the MTA / nothing is sent” notice.
 - Research note: test whether a persistent map show/hide preference reduces sensory load for people who prefer a text-first interface.
 - Validation gap: no lived-experience study with disabled or neurodivergent participants has been completed; do not claim WCAG conformance or rider readiness from expert and automated review alone.

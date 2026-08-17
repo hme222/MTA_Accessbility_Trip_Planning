@@ -3,12 +3,12 @@
 ## `web/src/styles.css`
 STEAL: Canonical tokens, rules, targets, focus treatment, and high-contrast transit-signage hierarchy
 IGNORE: Nothing; this is the product source of truth
-Evidence: Verified local CSS, SHA-256 `7f98d89ea987130ca1be804645d4195668d59b5588462683316eb9e18ded44e1`
+Evidence: Verified local CSS, SHA-256 `1cfec9611cabe022a8bcc0e5c52dc992bed8db7df08b9503eca0dd11152530b5`
 
 ## `web/src/App.tsx`
 STEAL: Shallow tab structure, disclosure placement, focus movement, and persistent mounted panels
 IGNORE: Comments that describe only two panels; the current implementation has three
-Evidence: Verified local source, SHA-256 `3352a45fc4ce009036fad5e0c12e6da70ead2cc83ad12bfbd1ec2df1913ed49a`
+Evidence: Verified local source, SHA-256 `2bbcee2a29e351e1e269907fcd9741da736a1d9955824897163db5178c76ac0f`
 
 ## `web/src/components.tsx`
 STEAL: Existing combobox, status, error, route, and non-color severity components

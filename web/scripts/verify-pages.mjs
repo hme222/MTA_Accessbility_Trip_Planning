@@ -42,9 +42,9 @@ const checks = [
   ],
   [
     appBundle.includes('About this demo') &&
-      appBundle.includes('Example trip results') &&
+      !appBundle.includes('Portfolio demo') &&
       appBundle.includes('This demonstration is not connected to the MTA'),
-    'app distinguishes disclosed source refresh from the unlinked report demonstration',
+    'app keeps project context in disclosure and distinguishes the unlinked report demonstration',
   ],
 ];
 

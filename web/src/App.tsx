@@ -227,11 +227,6 @@ function DemoDataModeNotice() {
 
   return (
     <aside className="demo-context" aria-label="About this demonstration">
-      <ul className="demo-qualifier" aria-label="Demo limitations">
-        <li><strong>Portfolio demo</strong></li>
-        <li>Example trip results</li>
-        <li><strong>Not for travel</strong></li>
-      </ul>
       {(session && !allRefreshed) || refreshError ? (
         <p className="source-warning source-warning-visible" role="status">
           Some official sources could not refresh. Affected sections use example data or say
