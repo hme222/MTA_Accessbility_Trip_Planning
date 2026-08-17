@@ -120,7 +120,7 @@ export default function App() {
               : "Built on the MTA's public GTFS, Subway Stations, and Elevator & Escalator feeds. Accessibility reflects the feed at build time — outages change hourly."}
           </p>
           <p>
-            <a href="https://github.com/hme222/MTA_Accessbility_Trip_Planning">
+            <a href="https://github.com/hme222/MTA_Accessibility_Trip_Planning">
               Source on GitHub
             </a>
           </p>
@@ -339,7 +339,7 @@ function Tabs({ panel, onChange }: { panel: Panel; onChange: (next: Panel) => vo
             type="button"
             role="tab"
             id={`tab-${tab.key}`}
-            className="tab"
+            className={`tab tab-${tab.key}`}
             aria-selected={selected}
             aria-controls={`panel-${tab.key}`}
             tabIndex={selected ? 0 : -1}

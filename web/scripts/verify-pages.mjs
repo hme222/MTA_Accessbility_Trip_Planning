@@ -17,11 +17,11 @@ const appBundle = appAsset
 const checks = [
   [landing.includes('href="./app/"'), 'project page links to ./app/'],
   [
-    landing.includes('https://github.com/hme222/MTA_Accessbility_Trip_Planning'),
+    landing.includes('https://github.com/hme222/MTA_Accessibility_Trip_Planning'),
     'project page links to the exact source repository',
   ],
   [
-    appIndex.includes('/MTA_Accessbility_Trip_Planning/app/assets/'),
+    appIndex.includes('/MTA_Accessibility_Trip_Planning/app/assets/'),
     'app assets use the GitHub Pages repository base path',
   ],
   [Boolean(demoAsset), 'demo adapter chunk exists'],

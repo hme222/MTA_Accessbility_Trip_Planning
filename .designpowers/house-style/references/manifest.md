@@ -3,12 +3,12 @@
 ## `web/src/styles.css`
 STEAL: Canonical tokens, rules, targets, focus treatment, and high-contrast transit-signage hierarchy
 IGNORE: Nothing; this is the product source of truth
-Evidence: Verified local CSS, SHA-256 `1cfec9611cabe022a8bcc0e5c52dc992bed8db7df08b9503eca0dd11152530b5`
+Evidence: Verified local CSS, SHA-256 `a6b3e396082cd37bc1896ea12cf35e312713400c0ef5c93a3bb9d3dd94acfc72`
 
 ## `web/src/App.tsx`
 STEAL: Shallow tab structure, disclosure placement, focus movement, and persistent mounted panels
 IGNORE: Comments that describe only two panels; the current implementation has three
-Evidence: Verified local source, SHA-256 `2bbcee2a29e351e1e269907fcd9741da736a1d9955824897163db5178c76ac0f`
+Evidence: Verified local source, SHA-256 `4e7b3eabc79cba273dcbe963894e9160df7fac9fdb426818c3bf95a7dd894378`
 
 ## `web/src/components.tsx`
 STEAL: Existing combobox, status, error, route, and non-color severity components
@@ -23,4 +23,4 @@ Evidence: Verified local source, SHA-256 `5aec6fbd83a642c86f90521c8b19cab6561d36
 ## `docs/index.html`
 STEAL: Matching project-page masthead, black/white rules, content measure, and project narrative
 IGNORE: Stale mobile-app, single-train, and out-of-scope claims that no longer match the source
-Evidence: Verified local source, SHA-256 `74305c3076bb73c9f6a7ae3d32e2d63b0239bdfa0d38be066adffbd89ceaf13f`
+Evidence: Verified local source, SHA-256 `70c257319f6cb11343d3cc8186e01b747157e37aa9477e232463df30b6e604c8`

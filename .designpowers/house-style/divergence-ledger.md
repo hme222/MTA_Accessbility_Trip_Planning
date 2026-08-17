@@ -37,3 +37,13 @@ Default: Start with dashboard-style tabs and no visible page title
 Instead: Reuse the landing page's black typography carrier at a tighter task-first scale
 Reason: The app needs a visible H1 and immediate visual continuity with the project page
 Validation: Desktop and mobile screenshots show the same wordmark, route bullets, type, gutters, and black/white rule language as the landing page
+
+## Interaction color
+Option A: Wash cards and page regions in multiple MTA colors; energetic but competes with service and accessibility status
+Option B: Keep the monochrome base and reveal MTA color through hover, focus, selected, checked, pressed, and expanded feedback
+Option C: Assign a transit line color to every page section; memorable but implies route meaning where none exists
+Chosen: B
+Chosen because: It adds delight precisely when the interface responds, preserves the task hierarchy, and keeps status colors authoritative
+Default: Generic brightness filters and pale-blue hover fills
+Instead: MTA blue/red/green interaction rails plus a high-contrast yellow platform edge on the primary action
+Validation: Every colored state has a non-color cue, retains visible focus, meets target and contrast requirements, adapts to dark/high-contrast themes, and disables new motion for reduced-motion users

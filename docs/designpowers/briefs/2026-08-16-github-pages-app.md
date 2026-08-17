@@ -23,7 +23,7 @@ NYC Transit signage: direct, high-contrast, information-first, and restrained. S
 
 ## Success Criteria
 - `npm run build` succeeds from `web/`.
-- The production build resolves assets under `/MTA_Accessbility_Trip_Planning/app/`.
+- The production build resolves assets under `/MTA_Accessibility_Trip_Planning/app/`.
 - The static demo supports the primary trip-planning task without a backend.
 - The UI clearly identifies snapshot data and links back to the case study.
 - A configured `VITE_API_URL` restores live API mode without component changes.

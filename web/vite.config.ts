@@ -12,7 +12,7 @@ export default defineConfig(({ command }) => ({
   // the repository path.
   base:
     command === 'build'
-      ? (process.env.VITE_BASE_PATH ?? '/MTA_Accessbility_Trip_Planning/app/')
+      ? (process.env.VITE_BASE_PATH ?? '/MTA_Accessibility_Trip_Planning/app/')
       : '/',
   build: {
     // The project narrative remains at `docs/index.html`; the app is its own

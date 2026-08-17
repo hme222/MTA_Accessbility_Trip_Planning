@@ -1,4 +1,4 @@
-# MTA_Accessbility_Trip_Planning
+# MTA_Accessibility_Trip_Planning
 
 Subway accessibility resolved down to the direction of travel, reflecting live
 elevator outages — so a rider is told not just whether they can get somewhere,
@@ -273,7 +273,7 @@ VITE_API_URL=https://your-api.example.com npm run build
 ```
 
 The default production base is
-`/MTA_Accessbility_Trip_Planning/app/`, and Vite writes the result to
+`/MTA_Accessibility_Trip_Planning/app/`, and Vite writes the result to
 `docs/app/` so it can be published beside the project page. Override the base
 with `VITE_BASE_PATH` for another host.
 

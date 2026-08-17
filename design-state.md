@@ -32,6 +32,8 @@ _Last updated: 2026-08-17_
 | Clear results and report output when source inputs change | Prevents stale output from appearing to match newly edited criteria | Senior neuroinclusive review, 2026-08-17 |
 | Lead with the planning task and move provenance into a calm “About this demo” disclosure | Keeps the bounded-data limitation honest without making a portfolio prototype read like a system failure | Owner direction and senior accessibility UX review, 2026-08-17 |
 | Remove the repeated “Portfolio demo / Not for travel” qualifier from the planner | The landing page already establishes project context; a hackathon judge should reach the core interaction before reading caveats, while the disclosure preserves scope and sources | Owner direction and senior UX hackathon-judge review, 2026-08-17 |
+| Add MTA color as interaction feedback rather than page decoration | Preserves quiet task hierarchy while making hover, focus, selection, press, checked, and expanded states feel responsive and transit-specific; every state retains a non-color cue | Owner direction, interaction-design review, and WCAG constraints, 2026-08-17 |
+| Correct the repository and Pages path to `MTA_Accessibility_Trip_Planning` | Removes the spelling error from the public URL and keeps the source link, Vite base path, and generated Pages assets aligned | Owner direction, 2026-08-17 |
 
 ## Open Questions
 - Which public host will eventually run the FastAPI service and generated feed?
@@ -43,12 +45,13 @@ _Last updated: 2026-08-17_
 - Plan: `docs/designpowers/plans/2026-08-16-github-pages-app-plan.md`
 - House style: `.designpowers/house-style/`
 - Multimodal brief: `docs/designpowers/briefs/2026-08-16-multimodal-map-ramps.md`
+- Interaction-color brief: `docs/designpowers/briefs/2026-08-17-accessible-mta-interaction-color.md`
 
 ## Handoff Chain
 Discovery approved → House Style Path B → Standard build → rendered verification → local health report.
 
 ## Current Status
-Opening-time public-data refresh and the accessibility review fix round are implemented and locally verified. The bounded planner requests MTA subway accessibility, current and planned elevator/escalator outages, and demo-route bus alerts once per page opening. Curb-ramp detail requests NYC Open Data when expanded. The planning task now leads; the opening time, source status, and detailed limitations sit in an “About this demo” disclosure rather than repeating the landing page's project warning. A source-refresh failure remains visible even while the disclosure is closed. Draft a report has a separate, unlinked demonstration notice.
+Opening-time public-data refresh, the accessibility review fix round, and the MTA interaction-color pass are implemented and locally verified. The bounded planner requests MTA subway accessibility, current and planned elevator/escalator outages, and demo-route bus alerts once per page opening. Curb-ramp detail requests NYC Open Data when expanded. The planning task now leads; the opening time, source status, and detailed limitations sit in an “About this demo” disclosure rather than repeating the landing page's project warning. A source-refresh failure remains visible even while the disclosure is closed. Draft a report has a separate, unlinked demonstration notice.
 
 ## Visual Continuity Evidence
 - Desktop render: `/tmp/mta-app-desktop.png`
@@ -70,6 +73,10 @@ Opening-time public-data refresh and the accessibility review fix round are impl
 - House-style evidence after the minimal redesign: Path B final validator and tell checks pass with fewer distinct font-size declarations than the previous build.
 - Senior accessibility UX post-build review: PASS with zero Critical or Major findings; the duplicate live refresh-failure announcement was removed after review.
 - Hackathon-judge UX review: approved removal of the repeated qualifier with zero Critical or Major findings. Normal, expanded, keyboard, and simulated source-failure states were verified in `/tmp/mta-no-warning-320.png`, `/tmp/mta-no-warning-open-390.png`, and `/tmp/mta-no-warning-source-failure.png`.
+- Interaction-color renders: `/tmp/mta-color-mobile-plan.png`, `/tmp/mta-color-planned.png`, `/tmp/mta-color-report-dark.png`, `/tmp/mta-color-button-hover.png`, and `/tmp/mta-color-focus-final-focus.png` cover blue/red/green selected tabs, dark theme, yellow primary-action feedback, and keyboard focus.
+- Interaction-color accessibility evidence: axe-core reported zero direct WCAG 2.x A/AA violations in Plan and Report states; 320/390 layouts had zero horizontal overflow; the focused disclosure retained a 3px outline plus blue rail; reduced-motion reported a `0s` primary-button transition; representative trip, map, stale-result, report persistence, and report invalidation checks passed.
+- Manual UI-accent contrast: light blue 9.25:1, red 3.81:1, green 3.77:1, and yellow-on-blue 6.45:1; dark blue 7.73:1, red 8.19:1, green 9.56:1, and yellow 10.73:1. Text colors were not changed.
+- Anti-AI audit (not blind): no high- or medium-severity tells found in the interaction-color revision. The state-only transit rails add a project-specific response pattern without turning sections into decorative cards. The mechanical tell budget passed; a fresh-context blind critic was not run for this local pass.
 
 **Matrix check**
 - Applied dimensions: context and mechanics; agentic UX, trust, and accessibility; design systems and prototyping; research and strategy.
