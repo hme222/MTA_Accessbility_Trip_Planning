@@ -51,7 +51,7 @@ _Last updated: 2026-08-17_
 Discovery approved → House Style Path B → Standard build → rendered verification → local health report.
 
 ## Current Status
-Opening-time public-data refresh, the accessibility review fix round, and the MTA interaction-color pass are implemented and locally verified. The bounded planner requests MTA subway accessibility, current and planned elevator/escalator outages, and demo-route bus alerts once per page opening. Curb-ramp detail requests NYC Open Data when expanded. The planning task now leads; the opening time, source status, and detailed limitations sit in an “About this demo” disclosure rather than repeating the landing page's project warning. A source-refresh failure remains visible even while the disclosure is closed. Draft a report has a separate, unlinked demonstration notice.
+Opening-time public-data refresh, the accessibility review fix round, and the MTA interaction-color pass are implemented, verified, and deployed at the correctly spelled Pages URL. The bounded planner requests MTA subway accessibility, current and planned elevator/escalator outages, and demo-route bus alerts once per page opening. Curb-ramp detail requests NYC Open Data when expanded. The planning task now leads; the opening time, source status, and detailed limitations sit in an “About this demo” disclosure rather than repeating the landing page's project warning. A source-refresh failure remains visible even while the disclosure is closed. Draft a report has a separate, unlinked demonstration notice.
 
 ## Visual Continuity Evidence
 - Desktop render: `/tmp/mta-app-desktop.png`
@@ -82,7 +82,7 @@ Opening-time public-data refresh, the accessibility review fix round, and the MT
 - Applied dimensions: context and mechanics; agentic UX, trust, and accessibility; design systems and prototyping; research and strategy.
 - Hard gates: no destructive/external write; accessibility and truthful provenance required; rendered evidence required before readiness.
 - Evidence status: Verified repository inspection plus owner-approved direction.
-- Validation still required: production deployment and post-deployment URL verification.
+- Production verification: repository, landing page, app, compiled JavaScript, and compiled CSS returned HTTP 200 at `MTA_Accessibility_Trip_Planning`; the deployed app asset paths and source links use the corrected spelling.
 
 ## Design Debt Review
 - Critical or major open items: none after the accessibility and neuroinclusive fix round.
