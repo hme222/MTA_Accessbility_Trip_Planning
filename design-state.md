@@ -30,6 +30,7 @@ _Last updated: 2026-08-17_
 | Rename the reporting task “Draft a report” and preserve its state across tabs | Makes the copy-only demonstration boundary predictable and supports interruption/resumption without implying submission | Senior accessibility and neuroinclusive reviews, 2026-08-17 |
 | Keep Leaflet controls out of the hidden map subtree and show attribution as ordinary content | Prevents keyboard focus from entering controls hidden from assistive technology while preserving required OpenStreetMap credit | Senior accessibility review, 2026-08-17 |
 | Clear results and report output when source inputs change | Prevents stale output from appearing to match newly edited criteria | Senior neuroinclusive review, 2026-08-17 |
+| Lead with the planning task and move provenance into a calm “About this demo” disclosure | Keeps the bounded-data limitation honest without making a portfolio prototype read like a system failure; the short “Not for travel” qualifier remains visible | Owner direction and senior accessibility UX review, 2026-08-17 |
 
 ## Open Questions
 - Which public host will eventually run the FastAPI service and generated feed?
@@ -46,7 +47,7 @@ _Last updated: 2026-08-17_
 Discovery approved → House Style Path B → Standard build → rendered verification → local health report.
 
 ## Current Status
-Opening-time public-data refresh and the accessibility review fix round are implemented and locally verified. The bounded planner requests MTA subway accessibility, current and planned elevator/escalator outages, and demo-route bus alerts once per page opening. Curb-ramp detail requests NYC Open Data when expanded. The compact session notice names the opening time, while the schedule and stop-set limitation remains explicit. Draft a report has a separate, unlinked demonstration notice.
+Opening-time public-data refresh and the accessibility review fix round are implemented and locally verified. The bounded planner requests MTA subway accessibility, current and planned elevator/escalator outages, and demo-route bus alerts once per page opening. Curb-ramp detail requests NYC Open Data when expanded. The planning task now leads; a compact qualifier remains visible while the opening time, source status, and detailed limitations sit in an “About this demo” disclosure. A source-refresh failure remains visible even while the disclosure is closed. Draft a report has a separate, unlinked demonstration notice.
 
 ## Visual Continuity Evidence
 - Desktop render: `/tmp/mta-app-desktop.png`
@@ -63,6 +64,10 @@ Opening-time public-data refresh and the accessibility review fix round are impl
 - Senior accessibility review fix evidence: landing page reflows at 320px; combobox synthesized click selects a stop; the hidden Leaflet subtree has zero focusable controls; visible OpenStreetMap attribution remains; all measured task controls meet 44px.
 - Neuroinclusive re-review: zero Critical or Major findings; approved for deployment as a clearly labeled portfolio demonstration, not as a rider-facing travel product.
 - State-resumption task test: trip results clear after query edits with visible and announced feedback; a composed report persists across tab changes and clears with feedback after its inputs change.
+- Minimal planner renders: `/tmp/mta-minimal-shipping-320.png`, `/tmp/mta-minimal-final-open-390.png`, `/tmp/mta-minimal-final-dark-390.png`, and `/tmp/mta-minimal-selected.png`; the complete first field is visible at 320×568, the source disclosure is calm and task-secondary, and the selected-stop map remains beside the form on desktop.
+- Redesign accessibility evidence: axe-core reported zero WCAG 2.x A/AA violations in the closed and expanded disclosure states; keyboard order and focus indicators passed; no measured task target was under 44px; no horizontal overflow occurred; the selected map contained zero hidden focusable or nested interactive descendants.
+- House-style evidence after the minimal redesign: Path B final validator and tell checks pass with fewer distinct font-size declarations than the previous build.
+- Senior accessibility UX post-build review: PASS with zero Critical or Major findings; the duplicate live refresh-failure announcement was removed after review.
 
 **Matrix check**
 - Applied dimensions: context and mechanics; agentic UX, trust, and accessibility; design systems and prototyping; research and strategy.
@@ -76,8 +81,7 @@ Opening-time public-data refresh and the accessibility review fix round are impl
 - Known dependency: browser-side refresh depends on third-party CORS availability; each source has a visible fallback or unavailable state.
 - Minor: several secondary async failure messages state what remains available but do not offer an inline retry.
 - Minor: Planned outages do not automatically filter to the selected From and To stops.
-- Minor: combobox instructions do not yet explicitly say that a typed station must be committed from the suggestions.
 - Minor: shared error notices use the generic heading “Something went wrong” instead of a task-specific heading.
-- Minor: the OpenStreetMap attribution link opens a new tab without an explicit new-tab cue.
+- Minor, intentional: the compact trip-demo qualifier is absent from Draft a report to honor the owner's request to keep trip snapshot messaging out of that task; the report instead begins with its own “not connected to the MTA / nothing is sent” notice.
 - Research note: test whether a persistent map show/hide preference reduces sensory load for people who prefer a text-first interface.
 - Validation gap: no lived-experience study with disabled or neurodivergent participants has been completed; do not claim WCAG conformance or rider readiness from expert and automated review alone.

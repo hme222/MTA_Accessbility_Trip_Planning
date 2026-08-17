@@ -235,55 +235,20 @@ main { flex: 1; }
   margin-inline: auto;
 }
 
-.app-content { padding-block: 2rem 4rem; }
+.app-content { padding-block: 1.5rem 4rem; }
 
 /* The landing page opens with black transit-signage typography. The app uses
    the same carrier at a tighter scale so the task remains first, not buried. */
 .planner-hero {
   background: var(--panel);
   color: var(--panel-text);
-  padding-block: clamp(2.25rem, 6vw, 4.25rem);
-}
-.planner-hero-bullets {
-  display: flex;
-  gap: 0.375rem;
-  margin-bottom: 1.35rem;
-}
-.hero-bullet {
-  width: 1.9em;
-  height: 1.9em;
-  flex: none;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: 1.0625rem;
-  font-weight: 700;
-  letter-spacing: 0;
-}
-.hero-bullet-1 { background: #EE352E; color: #111417; }
-.hero-bullet-4 { background: #00933C; color: #111417; }
-.hero-bullet-a { background: #0039A6; color: #FFFFFF; }
-.hero-bullet-n { background: #FCCC0A; color: #111417; }
-.hero-bullet-f { background: #FF6319; color: #111417; }
-.planner-eyebrow {
-  margin-bottom: 0.8rem;
-  color: #A8B0BA;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  padding-block: 0.9rem 1.1rem;
 }
 .planner-hero h1 {
-  max-width: 17ch;
-  font-size: clamp(2.5rem, 7vw, 4.75rem);
-  line-height: 1.08;
+  max-width: 22ch;
+  font-size: clamp(1.5rem, 5vw, 2.25rem);
+  line-height: 1.05;
   letter-spacing: -0.035em;
-}
-.planner-lede {
-  max-width: 58ch;
-  margin-top: 1.25rem;
-  color: #C9CFD7;
-  font-size: clamp(1.0625rem, 2vw, 1.25rem);
 }
 
 /* -- tabs ------------------------------------------------------------ */
@@ -309,28 +274,33 @@ main { flex: 1; }
   border-bottom-color: var(--accent);
 }
 
-/* Data provenance sits before every task because it changes how every result
-   may be used. It is a ruled system notice, not a promotional card. */
-.data-mode {
-  margin: -0.5rem 0 1.75rem;
-  padding: 0.85rem 1rem;
-  background: var(--warn-bg);
-  border: 1px solid var(--warn);
-  border-left-width: 6px;
-  border-radius: var(--radius);
-  display: grid;
-  gap: 0.35rem;
+/* Provenance is available without visually competing with the planning task.
+   The non-negotiable safety qualifier remains visible; detail is disclosed on
+   request using the browser's native, keyboard-accessible details pattern. */
+.demo-context {
+  margin: -0.5rem 0 1.5rem;
+  padding-block: 0.5rem;
+  border-block: 1px solid var(--rule);
 }
-.data-mode h2 {
-  color: var(--warn);
-  font-size: 1rem;
+.demo-qualifier {
   display: flex;
-  align-items: baseline;
-  gap: 0.45rem;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-soft);
+  font-size: 0.8125rem;
 }
-.data-mode p { font-size: 0.9375rem; max-width: 72ch; }
-.data-mode a { color: var(--text); font-weight: 700; justify-self: start; }
-.data-mode-critical { color: var(--warn); }
+.demo-qualifier li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  white-space: nowrap;
+}
+.demo-qualifier li + li::before { content: '·'; color: var(--text-soft); }
+.demo-qualifier strong { color: var(--text); }
 .snapshot-static { color: var(--text-soft); font-size: 0.8125rem; }
 .source-list {
   margin: 0.25rem 0;
@@ -341,18 +311,31 @@ main { flex: 1; }
 }
 .source-warning { color: var(--warn); font-weight: 700; }
 .source-links { display: flex; flex-wrap: wrap; gap: 0.45rem 1.25rem; }
-.source-details { margin-top: 0.2rem; }
+.source-details { margin-top: 0.1rem; }
 .source-details > summary {
   min-height: var(--tap);
   display: flex;
   align-items: center;
+  gap: 0.5rem;
   color: var(--text);
   font-weight: 700;
   cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 0.16em;
+  font-size: 0.875rem;
 }
-.source-details-body { display: grid; gap: 0.5rem; padding: 0.25rem 0 0.4rem; }
+.source-details > summary:hover { color: var(--accent); }
+.source-details[open] > summary .disclosure-arrow { transform: rotate(90deg); }
+.source-details-body {
+  display: grid;
+  gap: 0.6rem;
+  max-width: 72ch;
+  padding: 0.35rem 0 0.75rem 1.25rem;
+  font-size: 0.9375rem;
+}
+.source-details a { color: var(--text); font-weight: 700; }
+.source-warning-visible {
+  margin-top: 0.4rem;
+  font-size: 0.8125rem;
+}
 
 /* -- forms ----------------------------------------------------------- */
 
@@ -403,6 +386,7 @@ main { flex: 1; }
   border-radius: var(--radius);
 }
 .field input::placeholder { color: var(--text-soft); opacity: 1; }
+.field-hint { color: var(--text-soft); font-size: 0.8125rem; }
 
 /* -- combobox listbox ------------------------------------------------ */
 
@@ -1007,6 +991,8 @@ footer a { color: var(--panel-text); }
 @media (max-width: 26rem) {
   .app-content { padding-block: 1.5rem 3rem; }
 
+  .demo-qualifier li + li::before { content: none; }
+
   /* Stack the controls rather than letting the switch and buttons fight over
      a line they cannot share. */
   .controls { flex-direction: column; align-items: stretch; gap: 1.25rem; }
@@ -1039,38 +1025,22 @@ footer a { color: var(--panel-text); }
     padding-right: 0.75rem;
   }
   .theme-btn { justify-self: end; }
-  .planner-hero { padding-block: 1.75rem 2.1rem; }
-  .planner-hero-bullets { margin-bottom: 1rem; }
-  .planner-eyebrow { margin-bottom: 0.6rem; }
-  .planner-hero h1 { font-size: 2.25rem; }
-  .planner-lede { margin-top: 0.9rem; font-size: 1rem; line-height: 1.55; }
-  .app-content { padding-top: 1.25rem; }
+  .planner-hero { padding-block: 0.85rem 1rem; }
+  .app-content { padding-top: 1rem; }
   .tabs { margin-bottom: 1.25rem; }
-  .data-mode { margin-top: -0.25rem; margin-bottom: 1.35rem; }
+  .demo-context { margin-top: -0.25rem; margin-bottom: 1.25rem; }
 }
 
 @media (max-height: 26rem) {
   .masthead { position: static; }
 }
 
-/* On a short mobile or zoomed viewport, keep the warning and first task in
-   view. The hidden hero copy is repeated by the planner's visible controls. */
+/* On a short mobile or zoomed viewport, the planner remains the first task. */
 @media (max-width: 30rem) and (max-height: 40rem) {
-  .planner-hero { padding-block: 1rem; }
-  .planner-hero-bullets,
-  .planner-eyebrow,
-  .planner-lede { display: none; }
-  .planner-hero h1 { font-size: 1.75rem; }
+  .planner-hero { padding-block: 0.75rem 0.85rem; }
   .app-content { padding-top: 0.75rem; }
   .tabs { margin-bottom: 0.75rem; }
-  .data-mode {
-    padding: 0.6rem 0.75rem;
-    gap: 0.2rem;
-    margin-bottom: 0.75rem;
-  }
-  .data-mode h2 { font-size: 0.9375rem; }
-  .data-mode p { font-size: 0.8125rem; line-height: 1.45; }
-  .source-details > summary { min-height: var(--tap); font-size: 0.875rem; }
+  .demo-context { margin-bottom: 0.75rem; }
 }
 
 /* Honor an explicit request for more contrast. */

@@ -136,19 +136,7 @@ function PlannerHero() {
   return (
     <section className="planner-hero" aria-labelledby="planner-title">
       <div className="app-wrap">
-        <div className="planner-hero-bullets" aria-hidden="true">
-          <span className="hero-bullet hero-bullet-1">1</span>
-          <span className="hero-bullet hero-bullet-4">4</span>
-          <span className="hero-bullet hero-bullet-a">A</span>
-          <span className="hero-bullet hero-bullet-n">N</span>
-          <span className="hero-bullet hero-bullet-f">F</span>
-        </div>
-        <p className="planner-eyebrow">Accessible trip planner</p>
-        <h1 id="planner-title">Plan the whole trip.</h1>
-        <p className="planner-lede">
-          Choose a subway station or bus stop. Check the route, elevator status, and curb
-          ramps before you go—and before you need to get back.
-        </p>
+        <h1 id="planner-title">Plan an accessible trip.</h1>
       </div>
     </section>
   );
@@ -238,32 +226,43 @@ function DemoDataModeNotice() {
     : false;
 
   return (
-    <aside className="data-mode" aria-labelledby="data-mode-title">
-      <h2 id="data-mode-title">
-        <span aria-hidden="true">ⓘ</span> Demonstration data session
-      </h2>
-      <p className="data-mode-critical">
-        <strong>Do not use this app for travel decisions.</strong> Trip times and the stop set
-        are demonstration data.
-      </p>
-      <p>
-        {session
-          ? `Opened ${time(session.opened_at)}. Requested MTA subway accessibility, outages, and bus alerts. NYC Open Data ramps load on demand.`
-          : 'Requesting MTA subway accessibility, outages, and bus alerts for this app opening…'}
-      </p>
-      {session && !allRefreshed ? (
-        <p className="source-warning" role="status">
-          Some official sources could not refresh. The affected sections use demonstration data
-          or show an unavailable message. {session.errors.join(' ')}
-        </p>
-      ) : refreshError ? (
-        <p className="source-warning" role="status">
-          Official sources could not refresh. Demonstration data remains available.
+    <aside className="demo-context" aria-label="About this demonstration">
+      <ul className="demo-qualifier" aria-label="Demo limitations">
+        <li><strong>Portfolio demo</strong></li>
+        <li>Example trip results</li>
+        <li><strong>Not for travel</strong></li>
+      </ul>
+      {(session && !allRefreshed) || refreshError ? (
+        <p className="source-warning source-warning-visible" role="status">
+          Some official sources could not refresh. Affected sections use example data or say
+          they are unavailable.
         </p>
       ) : null}
       <details className="source-details">
-        <summary>More source details</summary>
+        <summary>
+          <span className="disclosure-arrow" aria-hidden="true">▸</span>
+          <span>About this demo</span>
+        </summary>
         <div className="source-details-body">
+          <p>
+            Trip times and the available stop set are examples. Do not use them for travel
+            decisions.
+          </p>
+          <p>
+            {session
+              ? `This page opened ${time(session.opened_at)}. It requested current MTA subway accessibility, elevator and escalator outages, and bus alerts. NYC Open Data curb ramps load when you open ramp details.`
+              : 'Requesting current MTA accessibility, outage, and bus-alert information for this page opening…'}
+          </p>
+          {session && !allRefreshed ? (
+            <p className="source-warning">
+              Some official sources could not refresh. Affected sections use example data or
+              show an unavailable message. {session.errors.join(' ')}
+            </p>
+          ) : refreshError ? (
+            <p className="source-warning">
+              Official sources could not refresh. Example data remains available.
+            </p>
+          ) : null}
           {session ? (
             <p>
               The opening-time requests finished at {time(session.refreshed_at)}.
@@ -282,14 +281,14 @@ function DemoDataModeNotice() {
           </ul>
           <div className="source-links">
             <a href="https://www.mta.info/developers" target="_blank" rel="noreferrer">
-              MTA developer sources
+              MTA developer sources (opens in a new tab)
             </a>
             <a
               href="https://data.cityofnewyork.us/Transportation/Pedestrian-Ramp-Locations/ufzp-rrqu"
               target="_blank"
               rel="noreferrer"
             >
-              NYC Open Data curb ramps
+              NYC Open Data curb ramps (opens in a new tab)
             </a>
             <a href="../">Project notes and data limitations</a>
           </div>

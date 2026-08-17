@@ -149,6 +149,7 @@ export function StationCombobox({
   const inputId = useId();
   const listId = useId();
   const labelId = useId();
+  const hintId = `${inputId}-hint`;
 
   // `text` is what the field displays, and it survives focus. Blanking a filled
   // field on focus reads as data loss, which is exactly the wrong signal to send
@@ -270,9 +271,9 @@ export function StationCombobox({
         aria-controls={open ? listId : undefined}
         aria-autocomplete="list"
         aria-activedescendant={activeId}
-        aria-describedby={value ? `${inputId}-status` : undefined}
+        aria-describedby={value ? `${hintId} ${inputId}-status` : hintId}
         autoComplete="off"
-        placeholder="Type a subway station or bus stop"
+        placeholder="Search stops"
         value={text}
         onFocus={() => {
           setOpen(true);
@@ -288,6 +289,10 @@ export function StationCombobox({
         }}
         onKeyDown={onKeyDown}
       />
+
+      <p id={hintId} className="field-hint">
+        Type a subway station or bus stop, then choose a suggestion.
+      </p>
 
       {/* The selected station's accessibility, as words, tied to the input. */}
       {value ? (

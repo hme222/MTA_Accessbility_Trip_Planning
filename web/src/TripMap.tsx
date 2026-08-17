@@ -120,7 +120,7 @@ export function TripMap({ origin, destination }: { origin?: Station; destination
       <p className="map-attribution">
         Map tiles ©{' '}
         <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
-          OpenStreetMap contributors
+          OpenStreetMap contributors (opens in a new tab)
         </a>
       </p>
 

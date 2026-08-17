@@ -41,9 +41,10 @@ const checks = [
     'curb-ramp details request NYC Open Data',
   ],
   [
-    appBundle.includes('Demonstration data session') &&
+    appBundle.includes('About this demo') &&
+      appBundle.includes('Example trip results') &&
       appBundle.includes('This demonstration is not connected to the MTA'),
-    'app distinguishes opening-time source refresh from the unlinked report demonstration',
+    'app distinguishes disclosed source refresh from the unlinked report demonstration',
   ],
 ];
 
